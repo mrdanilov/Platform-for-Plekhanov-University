@@ -1,0 +1,107 @@
+{% extends "schedule/base.html" %}
+{% load schedule_tags %}
+{% block title %}{% t_ 'university' %} — {% t_ 'brand' %}{% endblock %}
+
+{% block nav_university %}active{% endblock %}
+
+{% block content %}
+<h1>{% t_ 'university' %}</h1>
+
+<div class="uni-grid">
+  <section class="card uni-panel">
+    <h2 class="uni-section-title">{% t_ 'university_contacts' %}</h2>
+
+    <address class="uni-address">{{ uni.address }}</address>
+
+    <dl class="uni-contacts">
+      <div class="uni-contact-row">
+        <dt class="uni-contact-label">{% t_ 'university_phone' %}</dt>
+        <dd class="uni-contact-value">
+          {% for phone in uni.phones %}
+            <a class="uni-contact-link" href="tel:{{ phone.number }}">{{ phone.number }}</a>
+            <span class="uni-contact-note">{{ phone.note }}</span>
+          {% endfor %}
+        </dd>
+      </div>
+
+      <div class="uni-contact-row">
+        <dt class="uni-contact-label">{% t_ 'university_email' %}</dt>
+        <dd class="uni-contact-value">
+          <a class="uni-contact-link" href="mailto:{{ uni.email }}">{{ uni.email }}</a>
+        </dd>
+      </div>
+
+      <div class="uni-contact-row">
+        <dt class="uni-contact-label">{% t_ 'university_webmaster' %}</dt>
+        <dd class="uni-contact-value">
+          <a class="uni-contact-link" href="mailto:{{ uni.webmaster_email }}">{{ uni.webmaster_email }}</a>
+        </dd>
+      </div>
+    </dl>
+
+    <iframe class="uni-map" src="{{ uni.map_url }}" title="{% t_ 'university_map' %}"
+            loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+  </section>
+
+  <section class="card uni-panel">
+    <h2 class="uni-section-title">{% t_ 'university_form' %}</h2>
+
+    {% if sent %}
+      <p class="uni-status">{% t_ 'university_sent' %}</p>
+    {% endif %}
+    {% if form_errors %}
+      <p class="uni-status is-error">{% t_ 'university_send_error' %}</p>
+    {% endif %}
+
+    <form class="uni-form" method="post" action="{% url 'schedule:university_contact' %}">
+      {% csrf_token %}
+
+      <div class="uni-field">
+        <label class="uni-label" for="uni-name">{% t_ 'university_name' %}</label>
+        <input class="uni-input" type="text" id="uni-name" name="name"
+               placeholder="{% t_ 'university_name' %}" autocomplete="name"
+               maxlength="120" required>
+      </div>
+
+      <div class="uni-field">
+        <label class="uni-label" for="uni-email">{% t_ 'university_email_ph' %}</label>
+        <input class="uni-input" type="email" id="uni-email" name="email"
+               placeholder="{% t_ 'university_email_ph' %}" autocomplete="email"
+               maxlength="150" required>
+      </div>
+
+      <div class="uni-field">
+        <label class="uni-label" for="uni-message">{% t_ 'university_message' %}</label>
+        <textarea class="uni-input uni-textarea" id="uni-message" name="message"
+                  rows="7" placeholder="{% t_ 'university_message' %}"
+                  maxlength="2000" required></textarea>
+      </div>
+
+      <div class="uni-captcha" id="captcha">
+        <img class="uni-captcha-img"
+             src="{% url 'schedule:university_captcha' %}?v={{ captcha_token }}"
+             alt="{% t_ 'university_captcha_prompt' %}" width="350" height="62">
+        <a class="uni-captcha-refresh" href="?refresh=1#captcha">
+          {% t_ 'university_captcha_refresh' %}
+        </a>
+      </div>
+
+      <div class="uni-field">
+        <label class="uni-label" for="uni-captcha-answer">{% t_ 'university_captcha' %}</label>
+        <input class="uni-input uni-captcha-input" type="text" id="uni-captcha-answer"
+               name="captcha" placeholder="{% t_ 'university_captcha' %}"
+               inputmode="numeric" autocomplete="off" maxlength="4" required>
+        <input type="hidden" name="captcha_token" value="{{ captcha_token }}">
+      </div>
+
+      <label class="uni-check uni-check-consent" for="uni-consent">
+        <input type="checkbox" id="uni-consent" name="consent" value="1" required>
+        <span class="uni-check-box" aria-hidden="true"></span>
+        <span class="uni-check-text">{% t_ 'university_consent' %}</span>
+      </label>
+
+      <button type="submit" class="uni-submit">{% t_ 'university_send' %}</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

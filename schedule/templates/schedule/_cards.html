@@ -1,0 +1,54 @@
+{% comment %}
+Режим «Пары»: пара выбрана одна, поэтому таблица из восьми колонок
+бессмысленна — семь пустых. Здесь та же таблица, но «повёрнутая»:
+строка это день, а занятия этой пары по всем группам идут сеткой карточек
+на всю ширину. Колонки перестают быть узкими, карточки не выстраиваются
+в длинный столбик, пустого места не остаётся.
+{% endcomment %}
+{% load schedule_extras schedule_tags %}
+
+{% if not grid.has_cards %}
+  <div class="placeholder small">
+    <p class="placeholder-title">{% t_ 'no_lessons' %}</p>
+  </div>
+{% else %}
+
+  {% for lt in grid.lesson_times %}
+    {% if lt.pk == grid.filled_times.0 %}
+      <div class="cards-head">
+        <span class="cards-pair">{{ lt.number }}{% t_ 'pair_of' %}</span>
+        <span class="cards-time">{{ lt.start|time:"H:i" }}–{{ lt.end|time:"H:i" }}</span>
+      </div>
+    {% endif %}
+  {% endfor %}
+
+  {% for row in grid.rows %}
+    {% get_row_cells row.cells grid.filled_times.0 as cells %}
+    {% if cells %}
+      <section class="cards-day{% if row.is_today %} is-today{% endif %}">
+        <div class="cards-day-head">
+          <span class="cards-day-name">{{ row.name }}</span>
+          <span class="cards-day-date">{{ row.date_label }}</span>
+        </div>
+
+        <div class="cards-grid">
+          {% for cell in cells %}
+            <article class="lesson-card{% if cell.changed %} changed{% endif %}"
+                     {% if cell.subject %}style="background: {{ cell.subject.color }};"{% endif %}>
+              {% if cell.changed %}<span class="flag">{% t_ 'substitution' %}</span>{% endif %}
+              <div class="lesson-subject">{{ cell.subject_label }}</div>
+              <div class="lesson-meta">
+                {% if view != 'group' and cell.group %}<div>{{ cell.group }}</div>{% endif %}
+                {% if view != 'teacher' and cell.teacher %}<div>{{ cell.teacher }}</div>{% endif %}
+                {% if cell.room %}<div>{{ room_prefix }}{{ cell.room }}</div>{% endif %}
+                {% if cell.reason %}<div class="reason">{{ cell.reason }}</div>{% endif %}
+              </div>
+              <div class="lesson-time">{{ cell.lesson.lesson_time.start|time:"H:i" }}–{{ cell.lesson.lesson_time.end|time:"H:i" }}</div>
+            </article>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  {% endfor %}
+
+{% endif %}

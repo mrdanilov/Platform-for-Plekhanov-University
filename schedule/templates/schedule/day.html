@@ -1,0 +1,74 @@
+{% extends "schedule/base.html" %}
+{% load schedule_tags %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block nav_today %}active{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+<p class="page-sub">
+  {{ day_name }}, {{ day_date|date:"d.m.Y" }}
+  {% if selected_group %} · <a href="/?view=group&amp;id={{ selected_group }}">{% t_ 'menu_groups' %}</a>{% endif %}
+</p>
+
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+  <div class="chips">
+    {% for d in day_tabs %}
+      <a class="chip {% if d.num == day_number %}active{% endif %}"
+         href="?day={{ d.num }}&amp;week={{ week_param }}{% if selected_group %}&amp;group={{ selected_group }}{% endif %}">
+        {{ d.short }} {{ d.date_label }}
+      </a>
+    {% endfor %}
+  </div>
+  <div class="spacer"></div>
+  <a class="btn" href="/?view=group&amp;id={{ selected_group }}">{% t_ 'menu_groups' %}</a>
+  <button class="btn" type="button" onclick="window.print()">{% t_ 'print' %}</button>
+</div>
+
+<div class="card tt-wrap">
+{% if rows %}
+  <table class="day-table">
+    <thead>
+      <tr>
+        <th style="width:70px;">{% t_ 'lesson' %}</th>
+        <th style="width:110px;">{% t_ 'time' %}</th>
+        <th>{% t_ 'subject' %}</th>
+        <th>{% t_ 'group' %}</th>
+        <th>{% t_ 'teacher' %}</th>
+        <th>{% t_ 'room' %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr class="{% if row.changed %}changed{% endif %}">
+          <td>{{ row.lesson.lesson_time.number }}</td>
+          <td>{{ row.lesson.lesson_time.start|time:"H:i" }}–{{ row.lesson.lesson_time.end|time:"H:i" }}</td>
+          <td>
+            <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{{ row.color }};border:1px solid #bbb;"></span>
+            {{ row.subject_label }}
+            {% if row.type %} <span class="tag">{{ row.type }}</span>{% endif %}
+            {% if row.changed %}<br><span class="changed-flag">{% t_ 'substitution' %}</span> {{ row.reason }}{% endif %}
+          </td>
+          <td>
+            {% if row.group %}
+              <a href="/?view=group&amp;id={{ row.group.pk }}">{{ row.group }}</a>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if row.teacher %}
+              <a href="/?view=teacher&amp;id={{ row.teacher.pk }}">{{ row.teacher }}</a>
+            {% else %}—{% endif %}
+            {% if row.changed and row.lesson.teacher %}
+              <span style="color:var(--muted);">({{ row.lesson.teacher }})</span>
+            {% endif %}
+          </td>
+          <td>{{ row.room|default:"—" }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p class="empty-state">{% t_ 'no_lessons_today' %}</p>
+{% endif %}
+</div>
+{% endblock %}

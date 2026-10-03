@@ -1,0 +1,98 @@
+{% comment %}
+Блок расписания. Подключается и при обычной загрузке главной,
+и как фрагмент по /block/ при выборе без перезагрузки страницы.
+Таблица: дни в строках, пары в колонках — как в «Расписание_как_на_фото.xlsx».
+
+Для фильтра «Пары» колонка одна — выбрана конкретная пара, остальные семь
+пустых колонок только занимают место. Поэтому для этого режима таблица
+не рисуется вовсе: ниже тот же день-строками, но занятия идут сеткой карточек
+на всю ширину. Подробности — в schedule/templatetags/schedule_extras.py.
+{% endcomment %}
+{% load schedule_extras schedule_tags %}
+<div class="block-inner">
+  {% if not empty %}
+  <div class="block-head">
+    <h2 class="block-title">
+      {% if view == 'teacher' %}{% t_ 'teacher' %}: {% elif view == 'room' %}{% t_ 'room' %}: {% endif %}{{ title }}
+    </h2>
+
+    <div class="week-nav">
+      <button type="button" class="week-btn" data-week-nav="1"
+              data-view="{{ view }}" data-id="{{ selected_id }}" data-week="{{ prev_week }}"
+              title="{% t_ 'prev_week' %}">&laquo;</button>
+      <span class="week-label">{{ week_label }}{% if is_current_week %} · {{ week_now }}{% endif %}</span>
+      <button type="button" class="week-btn" data-week-nav="1"
+              data-view="{{ view }}" data-id="{{ selected_id }}" data-week="{{ next_week }}"
+              title="{% t_ 'next_week' %}">&raquo;</button>
+    </div>
+
+    <div class="spacer"></div>
+    <button class="btn btn-small" type="button" onclick="window.print()">{% t_ 'print' %}</button>
+    <a class="btn btn-small btn-primary"
+       href="/export/current.xlsx?view={{ view }}&amp;id={{ selected_id }}&amp;week={{ week_param }}"
+       >{% t_ 'excel' %}</a>
+  </div>
+  {% endif %}
+
+  {% if not grid.lesson_times %}
+    <div class="placeholder small">
+      <p class="placeholder-title">{% t_ 'no_lessons' %}</p>
+      <p class="placeholder-sub">
+        Сначала задайте время пар в <a href="/admin/schedule/lessontime/">админке</a>.
+      </p>
+    </div>
+  {% else %}
+    {% if grid.cards_mode %}
+{% include "schedule/_cards.html" %}
+    {% else %}
+    <div class="tt-wrap">
+      <table class="sheet-table">
+        <thead>
+          <tr>
+            <th class="corner"></th>
+            {% for lt in grid.lesson_times %}
+              <th class="pair-head">
+                {{ lt.number }}
+                <span class="pair-time">{{ lt.start|time:"H:i" }}<br>{{ lt.end|time:"H:i" }}</span>
+              </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in grid.rows %}
+            <tr class="{% if row.is_today %}today-row{% endif %}">
+              <th class="day-head">
+                <span class="day-name">{{ row.name }}</span>
+                <span class="day-date">{{ row.date_label }}</span>
+              </th>
+              {% for lt in grid.lesson_times %}
+                {% get_row_cells row.cells lt.pk as cells %}
+                <td class="slot{% if empty %} slot-empty{% endif %}">
+                  {% for cell in cells %}
+                    <div class="lesson{% if cell.changed %} changed{% endif %}"
+                         {% if cell.subject %}style="background: {{ cell.subject.color }};"{% endif %}>
+                      {% if cell.changed %}<span class="flag">{% t_ 'substitution' %}</span>{% endif %}
+                      <div class="lesson-subject">{{ cell.subject_label }}</div>
+                      <div class="lesson-meta">
+                        {% if view != 'group' and cell.group %}<div>{{ cell.group }}</div>{% endif %}
+                        {% if view != 'teacher' and cell.teacher %}<div>{{ cell.teacher }}</div>{% endif %}
+                        {% if cell.room %}<div>{{ room_prefix }}{{ cell.room }}</div>{% endif %}
+                        {% if cell.reason %}<div class="reason">{{ cell.reason }}</div>{% endif %}
+                      </div>
+                      <div class="lesson-time">{{ cell.lesson.lesson_time.start|time:"H:i" }}–{{ cell.lesson.lesson_time.end|time:"H:i" }}</div>
+                    </div>
+                  {% endfor %}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% endif %}
+    <p class="sheet-foot">
+      {% t_ 'formed' %} {{ today|date:"d.m.Y" }}
+    </p>
+  {% endif %}
+</div>

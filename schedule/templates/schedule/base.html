@@ -1,0 +1,87 @@
+{% load static schedule_tags %}<!DOCTYPE html>
+<html lang="{% current_lang %}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{% t_ 'brand' %}{% endblock %}</title>
+{% theme_script %}
+<link rel="stylesheet" href="{% asset 'schedule/style.css' %}">
+</head>
+<body>
+<div class="topbar">
+  <div class="container">
+
+    <a class="logo" href="/" title="{% t_ 'brand' %}">
+      <img class="logo-emblem" src="{% asset 'schedule/img/plekhanova_emblem.png' %}"
+           alt="" aria-hidden="true">
+      <img class="logo-word" src="{% asset 'schedule/img/plekhanova_wordmark_white.png' %}"
+           alt="{% t_ 'brand' %}">
+    </a>
+
+    <nav>
+      <a href="/" class="{% block nav_home %}{% endblock %}">{% t_ 'nav_home' %}</a>
+      <a href="/today/" class="{% block nav_today %}{% endblock %}">{% t_ 'nav_today' %}</a>
+      <a href="/import/">{% t_ 'import' %}</a>
+      <a href="{% url 'schedule:university' %}"
+         class="{% block nav_university %}{% endblock %}">{% t_ 'nav_university' %}</a>
+    </nav>
+
+    <div class="spacer"></div>
+
+    {% current_lang as active_lang %}
+{% languages as lang_options %}
+<div class="lang-switch" role="group" aria-label="Language">
+      {% for code, label in lang_options %}
+        <a class="lang-opt{% if code == active_lang %} active{% endif %}"
+           href="{% lang_url code %}">{{ label }}</a>
+      {% endfor %}
+    </div>
+
+    <button type="button" class="theme-toggle" id="theme-toggle"
+            data-light="{% t_ 'theme_light' %}" data-dark="{% t_ 'theme_dark' %}"
+            aria-label="{% t_ 'theme_dark' %}" title="{% t_ 'theme_dark' %}">
+      <span class="theme-icon" aria-hidden="true">☾</span>
+    </button>
+
+    <a class="login-btn" href="/admin/">
+      <span class="login-icon" aria-hidden="true">⇥</span>{% t_ 'login' %}
+    </a>
+  </div>
+</div>
+
+<main>
+<div class="container">
+  {% block content %}{% endblock %}
+</div>
+</main>
+
+<footer>{% t_ 'brand' %}</footer>
+
+<script>
+(function () {
+  // переключатель темы: запоминаем выбор в localStorage
+  var button = document.getElementById('theme-toggle');
+  var icon = button && button.querySelector('.theme-icon');
+
+  function paint() {
+    var dark = document.documentElement.dataset.theme === 'dark';
+    if (icon) icon.textContent = dark ? '☀' : '☾';
+    if (button) {
+      button.setAttribute('title', dark ? button.dataset.light : button.dataset.dark);
+      button.setAttribute('aria-label', button.title);
+    }
+  }
+
+  if (button) {
+    button.addEventListener('click', function () {
+      var dark = document.documentElement.dataset.theme === 'dark';
+      document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+      try { localStorage.setItem('schedule_theme', dark ? 'light' : 'dark'); } catch (e) {}
+      paint();
+    });
+  }
+  paint();
+})();
+</script>
+</body>
+</html>

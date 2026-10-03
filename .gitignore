@@ -1,0 +1,8 @@
+.venv/
+.secret_key
+db.sqlite3
+tmp_import/
+__pycache__/
+*.pyc
+staticfiles/
+.DS_Store

@@ -1,0 +1,148 @@
+﻿{% extends "schedule/base.html" %}
+{% load schedule_tags %}
+{% block title %}Импорт расписания{% endblock %}
+
+{% block content %}
+<h1>{% t_ 'import' %}</h1>
+<p class="page-sub">
+  Загрузите Excel или CSV. Сначала файл проверяется — расписание меняется только после подтверждения.
+</p>
+
+{% if just_imported %}
+  <div class="alert alert-ok">Импорт выполнен. Занятий в базе: {{ existing_count }}.</div>
+{% endif %}
+
+<div class="picker-grid">
+  <div class="card">
+    <h2 style="font-size:16px;margin:0 0 10px;">Формат 1 — сетка (как в «Расписание_как_на_фото.xlsx»)</h2>
+    <p class="page-sub">
+      В первой строке — номера пар со временем, в первом столбце — дни недели.
+      В ячейке занятие может занимать несколько строк, порядок строк не важен.
+    </p>
+    <table class="day-table">
+      <thead><tr><th>Ячейка</th><th>Значение</th></tr></thead>
+      <tbody>
+        <tr><td>B1</td><td><code>1<br>8:00 - 9:20</code> — первая пара</td></tr>
+        <tr><td>A2</td><td><code>Mn</code> — понедельник</td></tr>
+        <tr><td>B2</td><td><code>English<br>EnG4<br>F. Ruzmetova</code> — предмет, группа, преподаватель</td></tr>
+        <tr><td>B3</td><td><code>Финансы<br>ЭК-01<br>Петров И.Р.<br>Ауд. 201</code> — плюс аудитория</td></tr>
+      </tbody>
+    </table>
+    <p class="page-sub" style="margin-top:10px;">
+      Распознаются дни <code>Mn, Tu, Wed, Thu, Fri, Sat</code> и русские
+      (<code>Пн…Сб</code>), группы вида <code>G1</code>, <code>EnG10</code>,
+      <code>SE G1</code>, <code>ЭК-01</code>.
+      Строка со счётчиком вида <code>1/13</code> игнорируется.
+      Группы, предметы, преподаватели и аудитории создаются автоматически.
+    </p>
+    <p style="margin-top:8px;">
+      Пустой шаблон можно скачать и заполнить:
+      <a class="btn" href="/import/template.csv">шаблон CSV</a>
+    </p>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:16px;margin:0 0 10px;">Формат 2 — таблица</h2>
+    <p class="page-sub">Одна строка — одно занятие. Заголовки по-русски или по-английски, порядок столбцов не важен.</p>
+    <table class="day-table">
+      <thead><tr><th>Столбец</th><th>Пример</th><th>Обязателен</th></tr></thead>
+      <tbody>
+        <tr><td>Группа</td><td>ЭК-01 или «ЭК-01 2»</td><td>да</td></tr>
+        <tr><td>День</td><td>пн, понедельник, 1</td><td>да</td></tr>
+        <tr><td>Пара</td><td>1</td><td>да</td></tr>
+        <tr><td>Предмет</td><td>Финансы</td><td>да</td></tr>
+        <tr><td>Тип</td><td>Лекция</td><td>нет</td></tr>
+        <tr><td>Преподаватель</td><td>Петров И.Р.</td><td>нет</td></tr>
+        <tr><td>Аудитория</td><td>201 или «Главный - 201»</td><td>нет</td></tr>
+        <tr><td>Недели</td><td>каждую / нечёт / чёт</td><td>нет</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:12px;">
+      <a class="btn" href="/export/timetable.csv">Выгрузить текущее расписание</a>
+    </p>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="font-size:16px;margin:0 0 10px;">Загрузка</h2>
+
+  {% if not has_lesson_times %}
+    <div class="alert alert-warn">
+      «Время пар» ещё не задано. Если в файле есть заголовки пар с временем, они создадутся
+      сами. Иначе заполните <a href="/admin/schedule/lessontime/">«Время пар»</a> в админке.
+    </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <p><input type="file" name="file" accept=".xlsx,.xlsm,.xls,.csv,.txt" required></p>
+    <button class="btn btn-primary" type="submit" name="check" value="1">Проверить файл</button>
+    {% if can_apply %}
+      <button class="btn" type="submit" name="apply" value="1">Применить импорт</button>
+    {% endif %}
+  </form>
+
+  {% if can_apply %}
+    <p class="page-sub" style="margin:10px 0 0;">
+      Файл «{{ uploaded_name }}» уже проверен и сохранён — можно применить повторно
+      кнопкой выше, без новой загрузки.
+    </p>
+  {% endif %}
+
+  {% if result %}
+    <div style="margin-top:16px;">
+      {% if result.source %}
+        <div class="alert alert-ok">
+          <strong>Разбор:</strong> {{ result.source_label }}.
+        </div>
+      {% endif %}
+
+      {% if result.errors %}
+        <div class="alert alert-err">
+          {% if result.source %}
+            <strong>Ошибки:</strong>
+          {% else %}
+            <strong>Файл не применён — ни один разбор не удался:</strong>
+          {% endif %}
+          <ul style="margin:6px 0 0 18px;padding:0;">
+            {% for e in result.errors %}<li>{{ e }}</li>{% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      {% if result.warnings %}
+        <div class="alert alert-warn">
+          <strong>Предупреждения:</strong>
+          <ul style="margin:6px 0 0 18px;padding:0;">
+            {% for w in result.warnings %}<li>{{ w }}</li>{% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      {% if result.notes %}
+        <div class="alert alert-ok">
+          <strong>Что сделано при проверке:</strong>
+          <ul class="compact" style="margin:6px 0 0 18px;padding:0;">
+            {% for n in result.notes %}<li>{{ n }}</li>{% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      {% if checked_only %}
+        <div class="alert {% if result.errors %}alert-err{% else %}alert-ok{% endif %}">
+          {% if result.errors %}
+            Файл содержит ошибки — исправьте и загрузите заново.
+          {% else %}
+            <strong>Файл проверен, ошибок нет.</strong>
+            Будет создано: {{ result.created }}, обновлено: {{ result.updated }},
+            пропущено: {{ result.skipped }}.
+            Нажмите «Применить импорт», чтобы записать.
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="alert alert-ok"><strong>Импорт выполнен:</strong> {{ result.summary }}.</div>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

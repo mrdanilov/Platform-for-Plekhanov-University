@@ -1,0 +1,149 @@
+﻿{% extends "schedule/base.html" %}
+{% load schedule_tags %}
+{% block title %}{% t_ 'brand' %}{% endblock %}
+
+{% block content %}
+{{ week_param|json_script:"week-param" }}
+<div class="menu" id="menu">
+
+  <div class="menu-bar">
+    <div class="menu-group" role="group">
+      <button type="button" class="menu-btn{% if view == 'group' %} active{% endif %}"
+              data-kind="group" data-view="group" data-title="{% t_ 'menu_groups' %}" aria-haspopup="dialog">
+        {% t_ 'menu_groups' %}<span class="menu-count">{{ group_count }}</span>
+      </button>
+      <button type="button" class="menu-btn{% if view == 'pair' %} active{% endif %}"
+              data-kind="pair" data-view="pair" data-title="{% t_ 'menu_pairs' %}" aria-haspopup="dialog">
+        {% t_ 'menu_pairs' %}
+      </button>
+    </div>
+
+    <div class="menu-group" role="group">
+      <button type="button" class="menu-btn{% if view == 'teacher' %} active{% endif %}"
+              data-kind="teacher" data-view="teacher" data-title="{% t_ 'menu_teachers' %}" aria-haspopup="dialog">
+        {% t_ 'menu_teachers' %}<span class="menu-count">{{ teacher_count }}</span>
+      </button>
+    </div>
+
+    <div class="spacer"></div>
+    <a class="menu-link" href="/export/timetable.csv">{% t_ 'export' %}</a>
+  </div>
+
+  <div class="schedule-block" id="schedule-block">
+    {% if empty %}
+      <div class="placeholder">
+        <p class="placeholder-title">{% t_ 'placeholder' %}</p>
+      </div>
+    {% endif %}
+    {% include "schedule/_block.html" %}
+  </div>
+</div>
+
+<div class="picker-backdrop" id="picker-backdrop" hidden>
+  <div class="picker" role="dialog" aria-modal="true" aria-labelledby="picker-title">
+    <div class="picker-head">
+      <span id="picker-title">{% t_ 'choose' %}</span>
+      <button type="button" class="picker-close" id="picker-close"
+              aria-label="{% t_ 'close' %}">&times;</button>
+    </div>
+    <input type="text" class="picker-search" id="picker-search"
+           placeholder="{% t_ 'search' %}" autocomplete="off">
+    <div class="picker-list" id="picker-list"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const block = document.getElementById('schedule-block');
+  const backdrop = document.getElementById('picker-backdrop');
+  const listBox = document.getElementById('picker-list');
+  const searchBox = document.getElementById('picker-search');
+  const titleBox = document.getElementById('picker-title');
+  let currentView = '', currentKind = '';
+  // week_param через json_script, а не прямо в коде: значение из БД или
+  // параметра запроса не должно оказываться в исходнике скрипта как есть
+  let currentWeek = JSON.parse(
+    document.getElementById('week-param').textContent
+  );
+
+  const titles = {};
+  document.querySelectorAll('.menu-btn').forEach(function (btn) {
+    titles[btn.dataset.view] = btn.dataset.title || btn.textContent.trim();
+  });
+
+  function url(params) {
+    return new URLSearchParams(params).toString();
+  }
+
+  function markActive(view) {
+    document.querySelectorAll('.menu-btn').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.view === view);
+    });
+  }
+
+  async function loadBlock(view, id, week) {
+    block.classList.add('loading');
+    const resp = await fetch('/block/?' + url({ view: view, id: id, week: week }));
+    block.innerHTML = resp.ok
+      ? await resp.text()
+      : '<div class="placeholder"><p class="placeholder-title">—</p></div>';
+    block.classList.remove('loading');
+    markActive(view);
+    history.replaceState(null, '', '/?' + url({ view: view, id: id, week: week }));
+  }
+
+  async function loadList(q) {
+    const resp = await fetch('/list/?' + url({ kind: currentKind, q: q }));
+    listBox.innerHTML = await resp.text();
+    listBox.querySelectorAll('[data-id]').forEach(function (row) {
+      row.addEventListener('click', async function () {
+        backdrop.hidden = true;
+        await loadBlock(currentView, row.dataset.id, currentWeek);
+      });
+    });
+  }
+
+  async function openPicker(kind, view) {
+    currentKind = kind;
+    currentView = view;
+    titleBox.textContent = titles[kind] || '';
+    searchBox.value = '';
+    backdrop.hidden = false;
+    await loadList('');
+    searchBox.focus();
+  }
+
+  document.querySelectorAll('.menu-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      openPicker(btn.dataset.kind, btn.dataset.view);
+    });
+  });
+
+  document.getElementById('picker-close').addEventListener('click', function () {
+    backdrop.hidden = true;
+  });
+  backdrop.addEventListener('click', function (e) {
+    if (e.target === backdrop) backdrop.hidden = true;
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') backdrop.hidden = true;
+  });
+
+  let searchTimer;
+  searchBox.addEventListener('input', function () {
+    clearTimeout(searchTimer);
+    const q = searchBox.value;
+    searchTimer = setTimeout(function () { loadList(q); }, 200);
+  });
+
+  // стрелки недель — тоже без перезагрузки
+  document.addEventListener('click', async function (e) {
+    const link = e.target.closest('[data-week-nav]');
+    if (!link) return;
+    e.preventDefault();
+    currentWeek = link.dataset.week;
+    await loadBlock(link.dataset.view, link.dataset.id, currentWeek);
+  });
+})();
+</script>
+{% endblock %}

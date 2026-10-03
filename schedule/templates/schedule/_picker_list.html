@@ -1,0 +1,13 @@
+{% load schedule_tags %}
+{% if rows %}
+  <ul class="picker-items">
+    {% for row in rows %}
+      <li data-id="{{ row.id }}" tabindex="0" role="option">
+        <span class="picker-item-label">{{ row.label }}</span>
+        {% if row.meta %}<span class="picker-item-meta">{{ row.meta }}</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="picker-empty">{% t_ 'nothing_found' %}{% if query %}: «{{ query }}»{% endif %}</p>
+{% endif %}
