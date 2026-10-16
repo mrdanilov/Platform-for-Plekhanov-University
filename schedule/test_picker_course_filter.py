@@ -35,7 +35,7 @@ class PickerCourseFilterTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.subject = Subject.objects.create(name='Микроэкономика')
-        cls.teacher = Teacher.objects.create(full_name='Холбаева С.Р.')
+        cls.teacher = Teacher.objects.create(full_name='Соколова С.Р.')
         # Расписание звонков: утренние пары 1–3, дневные 4–6.
         cls.times = {}
         for number, (start, end) in enumerate((

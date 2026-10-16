@@ -6,7 +6,7 @@
 `schedule/tests_support/build_fixture.py`.
 
 В файле намеренно оставлены опечатки настоящего расписания: склейка
-``бизнеселекц.)``, слипшиеся инициалы ``АртиковаЗ.З.``, разное написание
+``бизнеселекц.)``, слипшиеся инициалы ``АрхиповаЗ.З.``, разное написание
 времени в одной паре, кураторский час и тип занятия не в первой скобке.
 Каждая из них ломала тихую загрузку по отдельности.
 """
@@ -76,10 +76,10 @@ class FixtureReadTests(TestCase):
         records, _, _ = read_file(str(FIXTURE))
         record = next(r for r in records if r['subject'] == 'Гражданское право')
         self.assertEqual(record['lesson_type'], 'Практика')
-        self.assertEqual(record['teacher'], 'Архангельская Е.Г.')
+        self.assertEqual(record['teacher'], 'Афанасьева Е.Г.')
 
     def test_duplicated_position_does_not_reach_the_subject(self):
-        """В файле вуза есть «ст. ст. преп. Гулямова А.Н.».
+        """В файле вуза есть «ст. ст. преп. Гаврилова А.Н.».
 
         Регулярное выражение находит «ст. преп.», и без дополнительной
         чистки в названии предмета оставалось «... ресторанного бизнеса ст».
@@ -94,7 +94,7 @@ class FixtureReadTests(TestCase):
             'Бизнес-планирование и прогнозирование деятельности предприятий '
             'ресторанного бизнеса',
         )
-        self.assertEqual(record['teacher'], 'Гулямова А.Н.')
+        self.assertEqual(record['teacher'], 'Гаврилова А.Н.')
         self.assertEqual(record['position'], 'Старший преподаватель')
 
     def test_no_subject_ends_with_position_remnant(self):

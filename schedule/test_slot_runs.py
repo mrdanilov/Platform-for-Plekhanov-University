@@ -31,7 +31,7 @@ class SlotRunTests(TestCase):
         cls.pe = Subject.objects.create(name='Физическая культура',
                                         short_name='ФизК')
         cls.math = Subject.objects.create(name='Матан', short_name='Матем')
-        cls.teacher = Teacher.objects.create(full_name='Разуваева И.Ю.')
+        cls.teacher = Teacher.objects.create(full_name='Рощина И.Ю.')
         cls.other_teacher = Teacher.objects.create(full_name='Дачев О.В.')
         cls.room = Room.objects.create(name='спорт зал')
         cls.groups = [Group.objects.create(name=n, course=1)

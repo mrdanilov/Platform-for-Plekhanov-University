@@ -80,7 +80,7 @@ class RoomGridTests(TestCase):
         cls.slot = LessonTime.objects.create(number=1, start='09:00', end='10:20')
         cls.subject = Subject.objects.create(name='Матан', short_name='Матем',
                                              color='#cfe3ff')
-        cls.teacher = Teacher.objects.create(full_name='Холбаева С.Р.')
+        cls.teacher = Teacher.objects.create(full_name='Соколова С.Р.')
         cls.room = Room.objects.create(name='201')
         cls.group = Group.objects.create(name='6301', course=1)
         Lesson.objects.create(group=cls.group, subject=cls.subject,
@@ -91,7 +91,7 @@ class RoomGridTests(TestCase):
         html = self.client.get(f'/block/?view=room&id={self.room.pk}').content.decode()
         self.assertIn('Матем', html)   # предмет выводится короткой меткой
         self.assertIn('6301', html)
-        self.assertIn('Холбаева', html)
+        self.assertIn('Соколова', html)
 
     def test_room_not_repeated_in_its_own_footer(self):
         """Номер кабинета в подвале карточки лишний: окно и есть этот кабинет."""
@@ -113,7 +113,7 @@ class AnalyticsTests(TestCase):
         cls.empty_slot = LessonTime.objects.create(number=2, start='10:30',
                                                    end='11:50')
         cls.subject = Subject.objects.create(name='Матан', short_name='Матем')
-        cls.teacher = Teacher.objects.create(full_name='Холбаева С.Р.')
+        cls.teacher = Teacher.objects.create(full_name='Соколова С.Р.')
         cls.room = Room.objects.create(name='201')
         cls.first = Group.objects.create(name='6301', course=1)
         cls.second = Group.objects.create(name='6303', course=1)
@@ -160,7 +160,7 @@ class AnalyticsTests(TestCase):
 
     def test_load_by_teacher(self):
         report = self.report()
-        self.assertEqual(report['top_teachers'][0]['name'], 'Холбаева С.Р.')
+        self.assertEqual(report['top_teachers'][0]['name'], 'Соколова С.Р.')
         self.assertEqual(report['top_teachers'][0]['count'], 1)
 
     def test_link_from_lesson_list(self):

@@ -23,8 +23,8 @@ class SplitCellTests(TestCase):
 
     def test_lecture_with_doctor(self):
         self.assertEqual(
-            split_cell('Микроэкономика (лекц.)  доц.Холбаева С'),
-            ('Микроэкономика', 'Лекция', 'Холбаева С.', 'Доцент'),
+            split_cell('Микроэкономика (лекц.)  доц.Соколова С'),
+            ('Микроэкономика', 'Лекция', 'Соколова С.', 'Доцент'),
         )
 
     def test_practical_without_position(self):
@@ -36,10 +36,10 @@ class SplitCellTests(TestCase):
         # Первая скобка — не тип, из-за неё тип не находился вообще.
         subject, kind, teacher, _ = split_cell(
             'История экономических учений (на английском языке) (лекц.) '
-            'ст. преп. Гулямова А.Н.')
+            'ст. преп. Гаврилова А.Н.')
         self.assertEqual(subject, 'История экономических учений (на английском языке)')
         self.assertEqual(kind, 'Лекция')
-        self.assertEqual(teacher, 'Гулямова А.Н.')
+        self.assertEqual(teacher, 'Гаврилова А.Н.')
 
     def test_glued_type_without_opening_bracket(self):
         # В файле есть «бизнеселекц.)» — склейка без скобки.
@@ -62,8 +62,8 @@ class SplitCellTests(TestCase):
 
     def test_single_word_subject_is_not_a_name(self):
         # «Право» — предмет, а не фамилия: одно слово именем не считаем.
-        subject, _, teacher, _ = split_cell('Право (лекц.) доц. Архангельская Е.Г.')
-        self.assertEqual((subject, teacher), ('Право', 'Архангельская Е.Г.'))
+        subject, _, teacher, _ = split_cell('Право (лекц.) доц. Афанасьева Е.Г.')
+        self.assertEqual((subject, teacher), ('Право', 'Афанасьева Е.Г.'))
 
     def test_multiline_cell(self):
         subject, kind, teacher, _ = split_cell(
@@ -82,7 +82,7 @@ class SplitCellTests(TestCase):
 
 class HelperTests(TestCase):
     def test_tidy_name_adds_missing_dots(self):
-        self.assertEqual(tidy_name('Холбаева С'), 'Холбаева С.')
+        self.assertEqual(tidy_name('Соколова С'), 'Соколова С.')
         self.assertEqual(tidy_name('Машарипов С.И'), 'Машарипов С.И.')
 
     def test_tidy_name_drops_leftover_position_dot(self):
@@ -90,7 +90,7 @@ class HelperTests(TestCase):
         self.assertEqual(tidy_name('. Шахназарова Н.В.'), 'Шахназарова Н.В.')
 
     def test_tidy_name_splits_glued_initials(self):
-        self.assertEqual(tidy_name('АртиковаЗ.З.'), 'Артикова З.З.')
+        self.assertEqual(tidy_name('АрхиповаЗ.З.'), 'Архипова З.З.')
 
     def test_parse_room_splits_building(self):
         self.assertEqual(parse_room('3/308'), ('308', '3'))
@@ -129,7 +129,7 @@ class ParityTests(TestCase):
             ws['D6'] = date
         ws['F6'] = 1
         ws['G6'] = '9.00-10.20'
-        ws['H6'] = 'Финансы (лекц.) доц. Эгамова М.Э.'
+        ws['H6'] = 'Финансы (лекц.) доц. Ершова М.Э.'
         ws['I6'] = '1/201'
         return ws
 
@@ -248,10 +248,10 @@ class LoadCommandTests(TestCase):
         self.tmp = tempfile.mkdtemp()
         self.path = str(Path(self.tmp) / 'raspisanie.xlsx')
         make_workbook(self.path, [
-            (12, 1, '9.00-10.20', 'Микроэкономика (лекц.) доц. Холбаева С.', '3/308'),
-            (12, 2, '10.30-11.50', 'Право (лекц.) ст. преп. Аюбов У.Т.', '1/402'),
-            (13, 1, '9.00-10.20', 'Финансы (лекц.) доц. Эгамова М.Э.', '2/105'),
-            (14, 2, '10.25-11.45', 'Кураторский час Карабаева Г.Ш.', '1/104'),
+            (12, 1, '9.00-10.20', 'Микроэкономика (лекц.) доц. Соколова С.', '3/308'),
+            (12, 2, '10.30-11.50', 'Право (лекц.) ст. преп. Аксенов У.Т.', '1/402'),
+            (13, 1, '9.00-10.20', 'Финансы (лекц.) доц. Ершова М.Э.', '2/105'),
+            (14, 2, '10.25-11.45', 'Кураторский час Крылова Г.Ш.', '1/104'),
         ])
 
     def test_read_file_skips_curator_hours(self):
@@ -271,7 +271,7 @@ class LoadCommandTests(TestCase):
             group__name='6301', day=1, lesson_time__number=1)
         self.assertEqual(lesson.subject.name, 'Микроэкономика')
         self.assertEqual(lesson.lesson_type.name, 'Лекция')
-        self.assertEqual(lesson.teacher.full_name, 'Холбаева С.')
+        self.assertEqual(lesson.teacher.full_name, 'Соколова С.')
         self.assertEqual(lesson.teacher.position, 'Доцент')
         self.assertEqual(lesson.room.name, '308')
         self.assertEqual(lesson.room.building, '3')

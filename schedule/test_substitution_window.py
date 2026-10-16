@@ -33,7 +33,7 @@ class SubstitutionFixture(TestCase):
         cls.subject = Subject.objects.create(name='Матан', short_name='Матем')
         cls.group = Group.objects.create(name='6301', course=1)
         cls.room = Room.objects.create(name='201')
-        cls.original = Teacher.objects.create(full_name='Холбаева С.Р.')
+        cls.original = Teacher.objects.create(full_name='Соколова С.Р.')
         cls.replacement = Teacher.objects.create(full_name='Васильева Е.Р.')
         cls.bystander = Teacher.objects.create(full_name='Дачев О.В.')
         cls.monday = monday_of(timezone.localdate())
@@ -62,7 +62,7 @@ class SubstitutionPickerTests(SubstitutionFixture):
 
     def test_lists_all_teachers(self):
         html = self.picker()
-        for name in ('Холбаева', 'Васильева', 'Дачев'):
+        for name in ('Соколова', 'Васильева', 'Дачев'):
             self.assertIn(name, html)
 
     def test_has_search_field(self):
@@ -126,7 +126,7 @@ class SubstitutionGridTests(SubstitutionFixture):
     def test_shown_to_the_substitute(self):
         self.make_sub()
         html = self.html(self.replacement)
-        self.assertIn('Холбаева', html)
+        self.assertIn('Соколова', html)
         self.assertIn('вместо', html)
 
     def test_not_shown_to_everybody_else(self):
@@ -167,7 +167,7 @@ class SubstitutionGridTests(SubstitutionFixture):
 
     def test_title_shows_teacher_name(self):
         self.assertIn('Замены:', self.html(self.original))
-        self.assertIn('Холбаева', self.html(self.original)[:2000])
+        self.assertIn('Соколова', self.html(self.original)[:2000])
 
     def test_without_teacher_id_nothing_is_shown(self):
         """Выбирать преподавателя обязательно: замена всегда про человека."""

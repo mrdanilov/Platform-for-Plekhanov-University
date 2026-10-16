@@ -38,7 +38,7 @@ class SpanFixture(TestCase):
         ]
         cls.subject = Subject.objects.create(name='Физика', short_name='Физ')
         cls.group = Group.objects.create(name='6301', course=1)
-        cls.teacher = Teacher.objects.create(full_name='Холбаева С.Р.')
+        cls.teacher = Teacher.objects.create(full_name='Соколова С.Р.')
         cls.room = Room.objects.create(name='201')
         cls.lesson = Lesson.objects.create(
             group=cls.group, subject=cls.subject, lesson_time=cls.slots[0],

@@ -30,7 +30,7 @@ class TodayLinksTests(TestCase):
     def setUpTestData(cls):
         cls.group = Group.objects.create(name='6301', course=1,
                                          specialty='Финансы и кредит (ФК)')
-        cls.teacher = Teacher.objects.create(full_name='Холбаева С.Р.',
+        cls.teacher = Teacher.objects.create(full_name='Соколова С.Р.',
                                             position='Доцент')
         cls.subject = Subject.objects.create(name='Микроэкономика')
         cls.time = LessonTime.objects.create(number=1, start='09:00',

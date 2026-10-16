@@ -22,7 +22,7 @@ class AdminReachabilityTests(TestCase):
 
     def test_local_network_can_open_admin(self):
         """Рабочий компьютер внутри вуза админку видит."""
-        for address in ('127.0.0.1', '10.10.3.8', '172.20.1.5', '192.168.1.10'):
+        for address in ('127.0.0.1', '10.0.0.5', '172.20.1.5', '192.168.1.10'):
             with self.subTest(address=address):
                 resp = self.client.get('/admin/', REMOTE_ADDR=address)
                 self.assertEqual(resp.status_code, 200)
@@ -102,7 +102,7 @@ class LoginLinkTests(TestCase):
         self.assertNotIn('login-btn', resp.content.decode())
 
     def test_link_is_visible_inside_the_network(self):
-        resp = self.client.get('/', REMOTE_ADDR='10.10.3.8')
+        resp = self.client.get('/', REMOTE_ADDR='10.0.0.5')
         self.assertEqual(resp.status_code, 200)
         self.assertIn('login-btn', resp.content.decode())
 
@@ -142,7 +142,7 @@ class UnparseableAddressTests(TestCase):
                                TRUST_X_FORWARDED_FOR_IP=True):
             allowed = self.client.get(
                 '/admin/', REMOTE_ADDR='127.0.0.1',
-                HTTP_X_FORWARDED_FOR='10.10.3.8')
+                HTTP_X_FORWARDED_FOR='10.0.0.5')
             outside = self.client.get(
                 '/admin/', REMOTE_ADDR='127.0.0.1',
                 HTTP_X_FORWARDED_FOR='8.8.8.8')

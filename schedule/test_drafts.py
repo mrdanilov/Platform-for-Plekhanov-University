@@ -37,7 +37,7 @@ class DraftFixture(TestCase):
         cls.subject = Subject.objects.create(name='Матан', short_name='Матем')
         cls.other = Subject.objects.create(name='Физика', short_name='Физ')
         cls.group = Group.objects.create(name='6301', course=1)
-        cls.teacher = Teacher.objects.create(full_name='Холбаева С.Р.')
+        cls.teacher = Teacher.objects.create(full_name='Соколова С.Р.')
         cls.substitute = Teacher.objects.create(full_name='Васильева Е.Р.')
         cls.room = Room.objects.create(name='201')
         cls.lesson = Lesson.objects.create(

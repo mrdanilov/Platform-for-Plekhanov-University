@@ -31,7 +31,7 @@ class MergeCombinedTests(TestCase):
         cls.slot = LessonTime.objects.create(number=1, start='09:00', end='10:20')
         cls.subject = Subject.objects.create(name='Физическая культура',
                                              short_name='ФизК', color='#dcea9e')
-        cls.teacher = Teacher.objects.create(full_name='Разуваева И.Ю.')
+        cls.teacher = Teacher.objects.create(full_name='Рощина И.Ю.')
         cls.gym = Room.objects.create(name='спорт зал')
         cls.other = Room.objects.create(name='201')
         cls.first = Group.objects.create(name='6305', course=1)
@@ -97,7 +97,7 @@ class MergeCombinedTests(TestCase):
 
     def test_pair_cards_do_not_repeat_teacher_and_room(self):
         html = self.client.get(f'/?view=pair&id={self.slot.pk}').content.decode()
-        self.assertEqual(html.count('Разуваева'), 1)
+        self.assertEqual(html.count('Рощина'), 1)
         self.assertEqual(html.count('спорт зал'), 1)
 
     def test_day_view_merges_and_keeps_links(self):
