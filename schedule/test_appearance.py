@@ -38,35 +38,43 @@ def png_size(path):
             int.from_bytes(head[20:24], 'big'))
 
 
-class BackgroundAssetTests(SimpleTestCase):
-    """Сам файл фона: он должен быть лёгким и в двух вариантах."""
+class NoPhotographicBackgroundTests(SimpleTestCase):
+    """Фон рисуется градиентом, а не фотографией.
 
-    def _path(self, name):
-        found = finders.find(f'schedule/img/{name}')
-        self.assertIsNotNone(found, f'нет файла {name}')
-        return found
+    Раньше фоном был снимок университетского зала, и в публичном репозитории
+    это выглядело бы как реклама чужого бренда. Кроме того, фотография весила
+    почти двести килобайт и ехала в каждой выгрузке статики.
 
-    def test_both_variants_exist(self):
-        for name in ('plekhanova_background.jpg',
-                     'plekhanova_background_dark.jpg'):
-            with self.subTest(name=name):
-                self.assertIsNotNone(self._path(name))
+    Проверка обратная: фотография не вернётся незаметно — вместе с ней
+    вернулись бы и чужие снимки зала, и лишний вес.
+    """
 
-    def test_files_are_light_enough(self):
-        """Исходная фотография весила 14 МБ — столько тянуть нельзя."""
-        for name in ('plekhanova_background.jpg',
-                     'plekhanova_background_dark.jpg'):
-            with self.subTest(name=name):
-                size = os.path.getsize(self._path(name))
-                self.assertLess(size, MAX_BACKGROUND_BYTES,
-                                f'{name} весит {size // 1024} КБ')
+    def test_no_image_files_are_shipped_for_the_background(self):
+        images = [name for name in ('schedule/img/plekhanova_background.jpg',
+                                    'schedule/img/plekhanova_background_dark.jpg')
+                  if finders.find(name)]
+        self.assertFalse(images, f'файлы фона вернулись: {images}')
 
-    def test_jpeg_signature(self):
-        for name in ('plekhanova_background.jpg',
-                     'plekhanova_background_dark.jpg'):
-            with self.subTest(name=name):
-                with open(self._path(name), 'rb') as fh:
-                    self.assertEqual(fh.read(2), b'\xff\xd8', 'не JPEG')
+    def test_css_references_no_background_image(self):
+        css = css_text()
+        offenders = re.findall(r"url\(['\"]?img/[^'\")]*\.(?:jpg|jpeg|png)",
+                               css)
+        self.assertFalse(
+            offenders,
+            f'в стилях снова появились адреса картинок: {offenders}')
+
+    def test_background_is_drawn_with_gradients(self):
+        for selector in ('body::before',):
+            rule = self._rule(selector)
+            self.assertIn('gradient(', rule,
+                          'фон должен рисоваться градиентом')
+
+    @staticmethod
+    def _rule(selector):
+        css = css_text()
+        match = re.search(re.escape(selector) + r'\s*\{([^}]*)\}', css)
+        assert match, selector
+        return match.group(1)
 
 
 class BackgroundCssTests(SimpleTestCase):
@@ -82,19 +90,19 @@ class BackgroundCssTests(SimpleTestCase):
         self.assertIsNotNone(match, f'нет правила {selector}')
         return match.group(1)
 
-    def photo_layer(self):
-        """Фоновая фотография — отдельный слой на всё окно.
+    def background_layer(self):
+        """Фон — отдельный слой на всё окно.
 
-        Раньше фото висело на body с background-size: cover, и его размер
-        зависел от высоты документа: стоило увеличить расписание — документ
-        вырос, и фотография растянулась вместе с таблицей. Теперь фото
-        лежит на body::before с inset: 0 и ни от чего, кроме окна, не
-        зависит.
+        Раньше здесь была фотография, и её размер зависел от высоты
+        документа: стоило увеличить расписание — документ вырос, и фон
+        растягивался вместе с таблицей. Теперь слой лежит на body::before
+        с inset: 0 и ни от чего, кроме окна, не зависит.
         """
         rule = self.rule('body::before')
-        self.assertIn("url('img/plekhanova_background.jpg')", rule)
-        self.assertIn('background-size: cover', rule)
-        self.assertIn('background-repeat: no-repeat', rule)
+        self.assertIn('gradient(', rule,
+                      'фон должен рисоваться градиентом')
+        self.assertNotIn('url(', rule,
+                         'в фоновом слое снова появилась картинка')
         self.assertIn('position: fixed', rule,
                       'слой не привязан к окну — фон поедет за таблицей')
         self.assertIn('inset: 0', rule,
@@ -110,36 +118,41 @@ class BackgroundCssTests(SimpleTestCase):
         self.assertIn('background: transparent', body,
                       'body перекроет фоновый слой')
 
-    def test_photo_url_is_relative(self):
-        """Относительный адрес переживёт смену хоста и префикса STATIC_URL."""
-        self.assertNotIn('url(/static/', self.photo_layer())
+    def test_background_has_no_absolute_url(self):
+        """Никаких адресов картинок в фоне: градиент рисует сам браузер."""
+        self.assertNotIn('url(', self.background_layer())
 
-    def test_canvas_has_colour_for_missing_photo(self):
-        """Цвет подложки нужен на случай, если картинка не загрузилась."""
-        self.assertRegex(self.css, r'html,\s*body\s*\{\s*background:\s*var\(--bg\)')
+    def test_canvas_has_colour_under_the_layer(self):
+        """Цвет подложки нужен под слоем: градиент может не отрисоваться."""
+        self.assertRegex(self.css,
+                         r'html,\s*body\s*\{\s*background:\s*var\(--bg\)')
 
-    def test_dark_theme_keeps_the_photo_visible(self):
-        """Тёмная тема не должна гасить фото.
+    def test_dark_theme_paints_its_own_background(self):
+        """У тёмной темы свой фон, а не светлый поверх тёмного.
 
-        Раньше режим подмешивания задавался для body и наследовался тёмной
-        темой: с подложкой #11171d multiply давал почти чистый чёрный.
-        Сейчас режимов подмешивания нет вовсе, тон задаёт вуаль, поэтому
-        проверяется именно она.
+        Раньше для этого был второй снимок; теперь — свои градиентные
+        слои, и если бы тёмная тема не переопределяла фон, светлые
+        пятна остались бы видны на тёмном полотне.
         """
         dark = self.rule('html[data-theme="dark"] body::before')
-        self.assertIn('plekhanova_background_dark.jpg', dark)
-        self.assertIn('var(--bg-veil)', dark,
-                      'в тёмной теме фото идёт без приглушающего слоя')
+        light = self.background_layer()
+        self.assertIn('gradient(', dark)
+        self.assertIn('var(--bg)', dark,
+                      'тёмный фон должен опираться на цвет темы')
+        self.assertNotEqual(dark.strip(), light.strip(),
+                            'тёмная тема не переопределяет фон')
         self.assertNotIn('multiply', dark)
 
-    def test_light_theme_veils_the_photo(self):
-        """Фото перекрывается приглушающим слоем, а не подмешиванием.
+    def test_light_theme_background_is_drawable(self):
+        """Светлая тема рисует фон слоями, а не подмешиванием.
 
-        multiply с светлой подложкой выдавал пересвеченный, почти белый
-        снимок без деталей.
+        Подмешивание с светлой подложкой давало пересвеченный, почти белый
+        результат, поэтому от него отказались: тон задают сами слои.
         """
-        self.assertIn('linear-gradient(var(--bg-veil), var(--bg-veil))',
-                      self.photo_layer())
+        layer = self.background_layer()
+        self.assertIn('linear-gradient(', layer,
+                      'в основе фона должен быть вертикальный переход')
+        self.assertNotIn('multiply', layer)
         self.assertNotIn('background-blend-mode', self.css)
 
     def test_veil_is_not_too_strong(self):
@@ -156,21 +169,19 @@ class BackgroundCssTests(SimpleTestCase):
                 self.assertGreater(float(alpha), 0.05,
                                    'фото окажется совсем без приглушения')
 
-    def test_photo_covers_whole_viewport(self):
-        """Слой закрывает всё окно.
+    def test_background_covers_whole_viewport(self):
+        """Слой закрывает всё окно — иначе по краям полосы ровной заливки."""
+        layer = self.background_layer()
+        self.assertIn('position: fixed', layer)
+        self.assertIn('inset: 0', layer)
 
-        Старый способ — background-attachment: fixed — на странице короче
-        окна рисовал фото полосой, а поля оставались ровной заливкой.
-        Отдельный слой с inset: 0 такой полосы оставить не может: он всегда
-        размером с окно.
-        """
-        rule = self.photo_layer()
-        self.assertNotIn('background-attachment', strip_comments(self.css),
-                         'привязка к окну обходным свойством больше не нужна')
-
-    def test_dark_theme_uses_its_own_variant(self):
-        block = self.rule('html[data-theme="dark"] body::before')
-        self.assertIn('plekhanova_background_dark.jpg', block)
+    def test_dark_theme_has_its_own_layers(self):
+        """Тёмная тема не ограничивается сменой одного цвета."""
+        dark = self.rule('html[data-theme="dark"] body::before')
+        self.assertGreater(
+            len(re.findall(r'gradient\(', dark)),
+            1,
+            'в тёмной теме фона недостаточно: один слой похож на светлый')
 
     def test_cards_are_slightly_transparent(self):
         """Сквозь карточки фото видно, но текст остаётся на светлом."""

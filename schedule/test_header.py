@@ -139,7 +139,7 @@ class HeaderTests(TestCase):
 
     def test_logo_is_in_header(self):
         response = self.client.get(reverse('schedule:index'))
-        self.assertContains(response, 'img/plekhanova_logo_120.png')
+        self.assertContains(response, 'img/logo.png')
         self.assertContains(response, 'class="logo-full"')
 
     def test_logo_has_no_plate(self):
@@ -166,7 +166,7 @@ class HeaderTests(TestCase):
 
         from django.contrib.staticfiles import finders
 
-        path = finders.find('schedule/img/plekhanova_logo_120.png')
+        path = finders.find('schedule/img/logo.png')
         self.assertIsNotNone(path)
         self.assertGreater(os.path.getsize(path), 1000)
 
@@ -185,7 +185,7 @@ class HeaderTests(TestCase):
 
         from django.contrib.staticfiles import finders
 
-        path = finders.find('schedule/img/plekhanova_logo_120.png')
+        path = finders.find('schedule/img/logo.png')
         self.assertIsNotNone(path)
         self.assertGreater(os.path.getsize(path), 1000)
 
@@ -206,7 +206,7 @@ class HeaderTests(TestCase):
         """Фон должен быть прозрачным, иначе в шапке будет белый прямоугольник."""
         from django.contrib.staticfiles import finders
 
-        with open(finders.find('schedule/img/plekhanova_logo_120.png'), 'rb') as fh:
+        with open(finders.find('schedule/img/logo.png'), 'rb') as fh:
             data = fh.read()
         # в PNG есть цветовой тип 6 (RGBA) или 4 (оттенки серого + альфа)
         self.assertIn(data[25], (4, 6), 'нет альфа-канала')
@@ -264,7 +264,7 @@ class HeaderTests(TestCase):
         with open(finders.find('schedule/style.css'), encoding='utf-8') as fh:
             css = fh.read()
 
-        ratio = png_size(finders.find('schedule/img/plekhanova_logo_120.png'))
+        ratio = png_size(finders.find('schedule/img/logo.png'))
         expected = ratio[0] / ratio[1]
         for body in re.findall(r'\.logo-full\s*\{([^}]*)\}', css):
             sizes = dict(re.findall(r'(width|height):\s*(\d+)px', body))
@@ -282,7 +282,7 @@ class HeaderTests(TestCase):
         """
         html = self.client.get('/').content.decode()
         for pattern in (r'/static/schedule/style\.css\?v=[1-9]\d*',
-                        r'/static/schedule/img/plekhanova_logo_120\.png\?v=[1-9]\d*'):
+                        r'/static/schedule/img/logo\.png\?v=[1-9]\d*'):
             self.assertRegex(html, pattern, f'нет рабочей версии в адресе: {pattern}')
         self.assertNotRegex(html, r'\?v=0\b',
                             'версия 0 — файл не найден, антикэш не работает')
@@ -332,7 +332,7 @@ class HeaderTests(TestCase):
 
     def test_logo_precedes_navigation(self):
         html = self.client.get(reverse('schedule:index')).content.decode()
-        logo = html.index('plekhanova_logo_120.png')
+        logo = html.index('logo.png')
         nav = html.index('<nav>')
         self.assertLess(logo, nav, 'логотип должен быть левее навигации')
 

@@ -109,10 +109,20 @@ class BodyBackgroundTests(SimpleTestCase):
         self.css = css_text()
 
     def test_background_is_tinted_not_laid_plain(self):
+        """Фон не однотонная заливка, а несколько слоёв.
+
+        Раньше здесь была фотография, прикрытая вуалью. Сейчас фон рисуется
+        градиентами: один слой даёт плоскую заливку, а расписание на такой
+        подложке сливается с панелями.
+        """
         layer = self.css[self.css.index('body::before {'):]
         layer = layer[:layer.index('\n}')]
-        self.assertIn('linear-gradient(var(--bg-veil)', layer,
-                      'фото ложится без приглушающего слоя и выходит выцветшим')
+        self.assertGreaterEqual(layer.count('gradient('), 3,
+                                'фон должен состоять из нескольких слоёв')
+        self.assertIn('var(--bg', layer,
+                      'последний слой должен опираться на цвет темы')
+        self.assertNotIn('url(', layer,
+                         'в фоне не должно быть картинок')
 
     def test_photo_does_not_grow_with_the_page(self):
         """Фон не должен ехать за таблицей.

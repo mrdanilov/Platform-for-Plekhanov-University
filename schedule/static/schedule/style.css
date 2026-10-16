@@ -113,8 +113,13 @@ html, body { background: var(--bg); }
    Теперь слой привязан к окну и ничего не знает о содержимом страницы:
    он всегда закрывает ровно то, что видно, и при увеличении не меняется.
    Тот же приём избавляет от прежней беды с background-attachment: fixed —
-   фото больше не рисуется полосой на странице короче окна, потому что
+   слой больше не рисуется полосой на странице короче окна, потому что
    задан inset: 0, а не background-size.
+
+   Фон сделан градиентом, а не фотографией: у фотографии был сюжет
+   университетского зала и герб на полу, и в публичном репозитории это
+   выглядело бы как реклама чужого бренда. Градиент рисуется средствами
+   браузера, весит ноль байт и не тяжелеет в тёмной теме.
 
    Сам body прозрачный: иначе непрозрачная заливка перекрыла бы слой —
    элементы с отрицательным z-index рисуются под фоном родителя. */
@@ -124,46 +129,30 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-image: linear-gradient(var(--bg-veil), var(--bg-veil)),
-                    url('img/plekhanova_background.jpg');
-  background-size: cover, cover;
-  background-repeat: no-repeat, no-repeat;
-  background-position: center top, center top;
+  background-image:
+    radial-gradient(1200px 600px at 12% -8%, rgba(47, 125, 204, .22), transparent 62%),
+    radial-gradient(900px 520px at 92% 4%, rgba(31, 92, 153, .20), transparent 58%),
+    linear-gradient(180deg, var(--bg-veil), var(--bg));
 }
 
 body {
   margin: 0;
   background: transparent;
   font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  /* Фоновое фото. Адрес относительный: переживёт смену хоста и префикса
-     STATIC_URL. Цвет подложки нужен на случай, если картинка не загрузилась,
-     поэтому он дублирует --bg, а не заменяет его. */
+  /* Фон рисуется градиентами: адреса не нужны, поэтому смена хоста и
+     префикса STATIC_URL его не затрагивает, а страница не ждёт картинку.
+     Подложка дублирует --bg, а не заменяет его. */
   background-color: var(--bg);
-  /* Снимок перекрыт приглушающим слоем --bg-veil. Раньше вместо этого стоял
-     режим подмешивания multiply, и фото выходило выцветшим — деталей не
-     оставалось, а сам слой всё равно не спорил с панелями.
-     Фильтра размытия в проекте нет: он зашит в саму фотографию, и
-     уменьшать его в разметке нечем. */
-  background-image:
-    linear-gradient(var(--bg-veil), var(--bg-veil)),
-    url('img/plekhanova_background.jpg');
-  background-size: cover, cover;
-  background-repeat: no-repeat, no-repeat;
-  background-position: center top, center top;
-  /* Без background-attachment: fixed. Он привязывал фото к окну, и на
-     странице короче окна картинка рисовалась полосой, а поля оставались
-     ровной заливкой. Обычное поведение тянет снимок на всю высоту
-     документа, а на телефоне вдобавок не тормозит при прокрутке. */
   color: var(--text);
   font-size: 15px;
   transition: background-color .2s ease, color .2s ease;
 }
-/* Тёмная тема: свой снимок и своя вуаль. Режим подмешивания здесь не
-   нужен — multiply с почти чёрной подложкой гасил фотографию целиком. */
+/* Тёмная тема: свой оттенок вместо своего снимка. */
 html[data-theme="dark"] body::before {
   background-image:
-    linear-gradient(var(--bg-veil), var(--bg-veil)),
-    url('img/plekhanova_background_dark.jpg');
+    radial-gradient(1200px 600px at 12% -8%, rgba(38, 96, 158, .30), transparent 62%),
+    radial-gradient(900px 520px at 92% 4%, rgba(18, 52, 92, .40), transparent 58%),
+    linear-gradient(180deg, var(--bg-veil), var(--bg));
 }
 a { color: var(--blue); text-decoration: none; }
 a:hover { text-decoration: underline; }
