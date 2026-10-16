@@ -182,8 +182,7 @@ class ReadmeStructureTests(SimpleTestCase):
         expected = {
             'manage.py': None,
             'db.sqlite3': None,
-            'OFFICER.md': None,
-            'schedule/models.py': 'schedule',
+                'schedule/models.py': 'schedule',
             'schedule/views.py': 'schedule',
             'schedule/exports.py': 'schedule',
             'config/settings.py': 'config',
@@ -219,7 +218,7 @@ class ReadmeStructureTests(SimpleTestCase):
         """Точки входа, база и инструкция — на верхнем уровне."""
         text = readme_text()
         section = text.split('## Структура папок')[1]
-        for name in ('manage.py', 'db.sqlite3', 'OFFICER.md'):
+        for name in ('manage.py', 'db.sqlite3'):
             self.assertIn(name, section, f'{name} не упомянут в схеме')
 
 

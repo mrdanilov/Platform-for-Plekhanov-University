@@ -94,7 +94,6 @@ python -m venv .venv
 | Файл | О чём |
 |---|---|
 | [`docs/HANDBOOK.md`](docs/HANDBOOK.md) | памятка по коду: запуск, справочники, настройки, бэкап |
-| [`OFFICER.md`](OFFICER.md) | инструкция для сотрудницы: как править расписание |
 | [`deploy/install.md`](deploy/install.md) | установка на сервер: systemd, nginx, HTTPS |
 | [`.env.example`](.env.example) | образец настроек с пояснениями |
 
