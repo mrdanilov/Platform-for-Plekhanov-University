@@ -301,7 +301,3 @@ python manage.py test schedule
 | [`OFFICER.md`](OFFICER.md) | инструкция для сотрудницы: как править расписание |
 | [`deploy/install.md`](deploy/install.md) | установка на сервер |
 | [`.env.example`](.env.example) | образец настроек с пояснениями |
-
-## Лицензия
-
-MIT — см. [LICENSE](LICENSE).
