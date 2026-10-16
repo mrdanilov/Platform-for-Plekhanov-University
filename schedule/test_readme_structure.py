@@ -256,14 +256,16 @@ class ReadmeStaysShortTests(SimpleTestCase):
 
     Так уже случилось: README вырос до тысячи строк и стал памяткой для
     автора. Подробности переехали в `docs/HANDBOOK.md`, и это закреплено
-    проверкой.     Планка поднята с 200 до 360 строк потому, что описание проекта для
-    посторонних (задача, возможности, логика, архитектура, стек, запуск,
-    настройки, тесты, безопасность) вместе с шестью скриншотами столько
-    занимает по существу, а не по недосмотру. Дальше расти README не должен:
-    подробности по коду живут в `docs/HANDBOOK.md`.
+    проверкой.
+
+    Планка — 140 строк. Три раза README уезжал в памятку: на тысячу строк,
+    потом на 335 «как у разработчиков». Подробности по коду живут в
+    `docs/HANDBOOK.md`, инструкция сотруднице — в `OFFICER.md`, и здесь
+    остаётся только то, что человек видит за минуту: что это, что умеет и
+    как запустить.
     """
 
-    MAX_LINES = 360
+    MAX_LINES = 140
 
     def setUp(self):
         self.text = README.read_text(encoding='utf-8')
@@ -279,17 +281,23 @@ class ReadmeStaysShortTests(SimpleTestCase):
     def test_readme_explains_what_the_project_is(self):
         """Человек с GitHub должен понять, что это, за 30 секунд."""
         lowered = self.text.lower()
-        for needle in ('django', 'sqlite', 'возможности', 'быстрый старт'):
+        for needle in ('django', 'sqlite', 'возможности', 'запуск'):
             self.assertIn(needle, lowered, f'в README нет слова «{needle}»')
 
     def test_readme_has_the_usual_sections(self):
-        """Структура, к которой привык человек, открывающий репозиторий."""
-        for heading in ('## Задача', '## Возможности', '## Стек',
-                        '## Быстрый старт', '## Тесты', '## Безопасность'):
+        """Минимальный набор: без этих разделов нечего открывать."""
+        for heading in ('## Что это', '## Возможности', '## Скриншоты',
+                        '## Стек', '## Запуск', '## Документация'):
             self.assertIn(heading, self.text, f'в README нет раздела {heading}')
 
-    def test_readme_has_table_of_contents(self):
-        self.assertIn('## Оглавление', self.text, 'в README нет оглавления')
+    def test_readme_has_no_table_of_contents(self):
+        """Оглавление нужно, когда страниц много. Здесь их шесть.
+
+        Оно занимает столько же места, сколько сами разделы, и со временем
+        перестаёт совпадать с содержанием.
+        """
+        self.assertNotIn('## Оглавление', self.text,
+                         'оглавление в коротком README лишнее')
 
     def test_readme_points_at_the_handbook(self):
         """Отсылка нужна, иначе подробности никто не найдёт."""
