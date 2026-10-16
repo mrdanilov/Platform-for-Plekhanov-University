@@ -4,8 +4,6 @@
 
 **Расписание вуза в браузере: загрузка из файла, черновики правок, журнал и откат.**
 
-Django · SQLite · без сборки фронтенда
-
 [![Проверки](https://github.com/mrdanilov/Platform-for-Plekhanov-University/actions/workflows/tests.yml/badge.svg)](https://github.com/mrdanilov/Platform-for-Plekhanov-University/actions/workflows/tests.yml)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/django-5.2-092E20.svg)](https://www.djangoproject.com/)
