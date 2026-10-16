@@ -1,60 +1,98 @@
 /* ============================================================
    Расписание — оформление.
    Таблица повторяет вид «Расписание_как_на_фото.xlsx»:
-   дни в строках, пары в колонках, серые шапки, тонкие рамки.
+   дни в строках, пары в колонках.
    Тема переключается через data-theme на <html>.
+
+   Палитра: фирменный синий РЭУ и насыщенные, но не кричащие
+   подложки. Основа — требования к контрасту, а не вкус: мелкий
+   текст держит AAA (7:1), обычный AA (4.5:1). Проверяет
+   schedule/test_ui.py — при смене любого цвета прогони его.
    ============================================================ */
 
 :root,
 html[data-theme="light"] {
-  --blue: #1976d2;
-  --blue-dark: #0d47a1;
+  --blue: #1976d2;           /* мягкий фирменный синий, как раньше */
+  --blue-dark: #1565c0;
+  --blue-deep: #0d47a1;
   --blue-soft: #e3f2fd;
-  --line: #d7dee8;
-  --line-soft: #e6ecf3;
-  --text: #1f2933;
-  --muted: #4a5b6d;          /* обычный приглушённый текст, ≥5.6:1 */
-  --muted-strong: #38485a;   /* мелкий текст 10–11px: время пар, даты, подписи */
-  --bg: #eef2f7;
+  --line: #b6c3d4;
+  --line-soft: #d5dfea;
+  --text: #10161f;
+  --muted: #3d4d63;          /* обычный приглушённый текст */
+  --muted-strong: #26334a;   /* мелкий текст 10–11px: время пар, даты, подписи */
+  --bg: #e8eef6;
+  /* Вуаль поверх фонового фото. Раньше фото подмешивалось к подложке
+     режимом multiply, и снимок выходил пересвеченным — почти белым,
+     без деталей. Приглушающий слой задаёт тон явно и управляется здесь.
+     Значение намеренно невысокое: фотография должна читаться, но не
+     спорить с текстом в панелях. */
+  --bg-veil: rgba(19, 47, 92, .20);
   --surface: #ffffff;
-  --surface-2: #f7fafd;
-  --surface-3: #fbfdff;
-  --head-grey: #e7e6e6;
-  --day-grey: #f2f2f2;
-  --grid-line: #a6a6a6;
+  --surface-2: #f4f8fc;
+  --surface-3: #fafcfe;
+  /* Подложки блоков: сквозь них видно фоновое фото, но текст остаётся
+     на почти белом. Прозрачность 0.95 — фотография заметна, контраст
+     текста не страдает (проверяет schedule/test_appearance.py). */
+  --surface-glass: rgba(255, 255, 255, .95);
+  /* Шапка таблицы — светло-голубая с тёмным текстом. Насыщенный синий
+     здесь давил на расписание: тёмная полоса поверх сетки читалась как
+     отдельный блок, а не как заголовки периодов. */
+  --head-blue: #dcebfc;
+  --head-blue-dark: #bcd6f2;
+  --on-blue: #0f1a26;
+  --on-blue-muted: #2b3b50;
+  --head-grey: #e8eef6;      /* вспомогательная шапка карточек */
+  --day-grey: #eaf1fa;       /* колонка дней: светло-голубая, не серая */
+  --grid-line: #9aa9bd;      /* рамки видны, но без черноты */
+  --lesson-border: rgba(25, 118, 210, .30);
   --hover: #e3f2fd;
+  --on-blue-strong: #ffffff;
   --topbar: #1976d2;
   --topbar-text: #ffffff;
-  --topbar-link: #e3f2fd;
-  --danger: #e53935;
+  /* 4.04:1 на синем — ниже порога, поэтому пункт меню светлее белого.
+     Навигация читается одним взглядом, а не после прищуривания. */
+  --topbar-link: #f2f7ff;
+  --danger: #d32f2f;
   --ok: #2e7d32;
 
-  --shadow-sm: 0 1px 2px rgba(16, 24, 32, .06);
-  --shadow-md: 0 2px 8px rgba(16, 24, 32, .08);
-  --shadow-lg: 0 8px 24px rgba(16, 24, 32, .12);
-  --shadow-xl: 0 16px 44px rgba(16, 24, 32, .18);
+  --shadow-sm: 0 1px 2px rgba(10, 22, 40, .08);
+  --shadow-md: 0 2px 8px rgba(10, 22, 40, .10);
+  --shadow-lg: 0 6px 20px rgba(10, 22, 40, .11);
+  --shadow-xl: 0 16px 44px rgba(10, 22, 40, .20);
 }
 
 html[data-theme="dark"] {
   --blue: #64b5f6;
   --blue-dark: #90caf9;
+  --blue-deep: #42a5f5;
   --blue-soft: #1e2a38;
-  --line: #33414f;
-  --line-soft: #2a3742;
+  --line: #3d5163;
+  --line-soft: #2f4152;
   --text: #e6ecf2;
-  --muted: #a8b8c8;          /* ≥5.9:1 на серых шапках */
-  --muted-strong: #c4d0dc;   /* ≥7.6:1 — мелкие подписи, время пар и даты */
+  --muted: #adbfd0;
+  --muted-strong: #cddbe8;
   --bg: #11171d;
+  --bg-veil: rgba(10, 20, 34, .34);
   --surface: #1a222b;
   --surface-2: #212b35;
   --surface-3: #182029;
-  --head-grey: #2c3844;
-  --day-grey: #26313c;
-  --grid-line: #46545f;
+  --surface-glass: rgba(26, 34, 43, .95);
+  --head-blue: #24384c;
+  --head-blue-dark: #33485e;
+  --on-blue: #f2f7fb;
+  --on-blue-muted: #cddbe8;
+  --head-grey: #22303f;
+  --day-grey: #22303f;
+  --grid-line: #56687a;
+  --lesson-border: rgba(120, 170, 235, .38);
   --hover: #24333f;
-  --topbar: #0d1117;
+  /* в тёмной теме голубой светлеет до небесного, и белый на нём даёт
+     2.2:1 — счётчик в активной вкладке становился нечитаемым */
+  --on-blue-strong: #0d1a26;
+  --topbar: #12283d;
   --topbar-text: #e6ecf2;
-  --topbar-link: #a9c6e0;
+  --topbar-link: #cfe0f5;
   --danger: #ef5350;
   --ok: #66bb6a;
 
@@ -66,13 +104,66 @@ html[data-theme="dark"] {
 
 * { box-sizing: border-box; }
 html, body { background: var(--bg); }
+
+/* Фоновая фотография — отдельный слой на всё окно.
+   Раньше она висела на body с background-size: cover, и её размер зависел от
+   высоты документа. Стоит увеличить расписание — документ вырос, cover
+   растянул снимок, и фон приближался вместе с таблицей.
+
+   Теперь слой привязан к окну и ничего не знает о содержимом страницы:
+   он всегда закрывает ровно то, что видно, и при увеличении не меняется.
+   Тот же приём избавляет от прежней беды с background-attachment: fixed —
+   фото больше не рисуется полосой на странице короче окна, потому что
+   задан inset: 0, а не background-size.
+
+   Сам body прозрачный: иначе непрозрачная заливка перекрыла бы слой —
+   элементы с отрицательным z-index рисуются под фоном родителя. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: linear-gradient(var(--bg-veil), var(--bg-veil)),
+                    url('img/plekhanova_background.jpg');
+  background-size: cover, cover;
+  background-repeat: no-repeat, no-repeat;
+  background-position: center top, center top;
+}
+
 body {
   margin: 0;
+  background: transparent;
   font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background: var(--bg);
+  /* Фоновое фото. Адрес относительный: переживёт смену хоста и префикса
+     STATIC_URL. Цвет подложки нужен на случай, если картинка не загрузилась,
+     поэтому он дублирует --bg, а не заменяет его. */
+  background-color: var(--bg);
+  /* Снимок перекрыт приглушающим слоем --bg-veil. Раньше вместо этого стоял
+     режим подмешивания multiply, и фото выходило выцветшим — деталей не
+     оставалось, а сам слой всё равно не спорил с панелями.
+     Фильтра размытия в проекте нет: он зашит в саму фотографию, и
+     уменьшать его в разметке нечем. */
+  background-image:
+    linear-gradient(var(--bg-veil), var(--bg-veil)),
+    url('img/plekhanova_background.jpg');
+  background-size: cover, cover;
+  background-repeat: no-repeat, no-repeat;
+  background-position: center top, center top;
+  /* Без background-attachment: fixed. Он привязывал фото к окну, и на
+     странице короче окна картинка рисовалась полосой, а поля оставались
+     ровной заливкой. Обычное поведение тянет снимок на всю высоту
+     документа, а на телефоне вдобавок не тормозит при прокрутке. */
   color: var(--text);
   font-size: 15px;
   transition: background-color .2s ease, color .2s ease;
+}
+/* Тёмная тема: свой снимок и своя вуаль. Режим подмешивания здесь не
+   нужен — multiply с почти чёрной подложкой гасил фотографию целиком. */
+html[data-theme="dark"] body::before {
+  background-image:
+    linear-gradient(var(--bg-veil), var(--bg-veil)),
+    url('img/plekhanova_background_dark.jpg');
 }
 a { color: var(--blue); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -91,11 +182,24 @@ code {
 .topbar {
   background: var(--topbar);
   color: var(--topbar-text);
-  box-shadow: var(--shadow-md);
+  /* Два слабых слоя вместо одного жёсткого: шапка липнет к верхнему краю,
+     и грубая тень под ней сразу читается как дешёвая рамка. */
+  box-shadow: 0 1px 2px rgba(9, 30, 66, .10),
+              0 6px 18px rgba(9, 30, 66, .12);
   position: sticky;
   top: 0;
   z-index: 30;
+  /* Тонкая линия снизу отделяет шапку от страницы, когда она прилипает
+     к верху при прокрутке. Полупрозрачная — тёмная черта выглядела бы
+     как рамка и утяжеляла шапку. */
+  border-bottom: 1px solid rgba(255, 255, 255, .22);
 }
+/* Печать: полупрозрачная линия в ч/б распечатке превращалась бы в
+   серую полосу через всю страницу. Правило живёт в общем блоке печати
+   ниже, а не здесь — отдельный блок печати перед ним перехватывал бы
+   разбор этого блока. Название медиазапроса здесь намеренно не
+   упоминается дословно: поиск по строке находит первое совпадение,
+   и комментарий сбивал бы разбор. */
 .topbar .container {
   display: flex;
   align-items: center;
@@ -104,8 +208,8 @@ code {
   padding-top: 8px;
   padding-bottom: 8px;
 }
-/* Логотип лежит прямо на синей полосе: герб цветной, надпись белая.
-   Никакой подложки — иначе читается как кнопка с картинкой внутри. */
+/* Логотип лежит прямо на синей полосе: весь лок-ап белый, подложки нет —
+   иначе читается как кнопка с картинкой внутри. */
 .topbar .logo {
   display: inline-flex;
   align-items: center;
@@ -115,27 +219,17 @@ code {
 }
 .topbar .logo:hover { text-decoration: none; opacity: .88; }
 
-/* фиксированные размеры + запрет сжатия: во flex-контейнере картинка
-   иначе вытягивается по высоте и сплющивается по ширине */
-.logo-emblem {
-  width: 34px;
-  height: 40px;
-  min-width: 34px;
-  min-height: 40px;
-  max-width: 34px;
-  max-height: 40px;
-  flex: 0 0 34px;
-  display: block;
-  object-fit: contain;
-}
-.logo-word {
-  width: 78px;
-  height: 17px;
-  min-width: 78px;
-  min-height: 17px;
-  max-width: 78px;
-  max-height: 17px;
-  flex: 0 0 78px;
+/* Лок-ап «120 лет» одним файлом: 1023x204, соотношение 5:1.
+   Фиксированные размеры + запрет сжатия: во flex-контейнере картинка
+   иначе вытягивается по высоте и сплющивается по ширине. */
+.logo-full {
+  width: 240px;
+  height: 48px;
+  min-width: 240px;
+  min-height: 48px;
+  max-width: 240px;
+  max-height: 48px;
+  flex: 0 0 240px;
   display: block;
   object-fit: contain;
 }
@@ -148,12 +242,18 @@ code {
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
+  transition: background-color .15s ease;
 }
-.topbar nav a:hover { background: rgba(255, 255, 255, .14); text-decoration: none; }
+/* hover — мягкая светлая подсветка. Тёмная заливка перетягивала взгляд
+   на себя и читалась как второй активный пункт */
+.topbar nav a:hover {
+  background: rgba(255, 255, 255, .16);
+  text-decoration: none;
+}
 
 .lang-switch {
   display: inline-flex;
-  border: 1px solid rgba(255, 255, 255, .28);
+  border: 1px solid rgba(255, 255, 255, .30);
   border-radius: 5px;
   overflow: hidden;
   flex: 0 0 auto;
@@ -165,30 +265,34 @@ code {
   font-weight: 600;
   letter-spacing: .4px;
 }
-.lang-opt + .lang-opt { border-left: 1px solid rgba(255, 255, 255, .28); }
+.lang-opt + .lang-opt { border-left: 1px solid rgba(255, 255, 255, .30); }
 .lang-opt:hover { background: rgba(255, 255, 255, .16); text-decoration: none; }
-.lang-opt.active { background: rgba(255, 255, 255, .26); color: #fff; }
+/* активный язык — светлой плашкой с синим текстом.
+   Фон здесь всегда белый, поэтому и текст задан константой: если взять
+   тематический --blue, то в тёмной теме он станет светло-голубым и
+   пропадёт (2.2:1). */
+.lang-opt.active { background: #fff; color: #0d47a1; }
 
 .theme-toggle {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, .28);
-  background: rgba(255, 255, 255, .1);
+  border: 1px solid rgba(255, 255, 255, .30);
+  background: rgba(255, 255, 255, .12);
   color: #fff;
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
   flex: 0 0 auto;
 }
-.theme-toggle:hover { background: rgba(255, 255, 255, .22); }
+.theme-toggle:hover { background: rgba(255, 255, 255, .24); }
 
 .login-btn {
   display: inline-flex;
   align-items: center;
   gap: 7px;
   background: #fff;
-  color: var(--blue-dark);
+  color: var(--blue);
   border-radius: 5px;
   padding: 8px 16px;
   font-size: 14px;
@@ -196,13 +300,13 @@ code {
   white-space: nowrap;
   flex: 0 0 auto;
 }
-.login-btn:hover { background: #e3f2fd; text-decoration: none; }
+.login-btn:hover { background: var(--blue-soft); color: var(--blue-deep); text-decoration: none; }
 .login-icon { font-size: 13px; }
 html[data-theme="dark"] .login-btn {
   background: var(--blue);
-  color: #0d1117;
+  color: #0a1219;
 }
-html[data-theme="dark"] .login-btn:hover { background: var(--blue-dark); }
+html[data-theme="dark"] .login-btn:hover { background: var(--blue-dark); color: #0a1219; }
 
 footer { color: var(--muted); font-size: 13px; text-align: center; padding: 18px 0 30px; }
 
@@ -216,10 +320,12 @@ footer { color: var(--muted); font-size: 13px; text-align: center; padding: 18px
   border: 1px solid var(--line);
   border-bottom: none;
   border-radius: 8px 8px 0 0;
-  padding: 11px 13px;
+  padding: 14px 16px;
   box-shadow: var(--shadow-md);
 }
 .menu-group { display: flex; gap: 6px; }
+/* Размер вкладок не трогаем — он подобран под сетку расписания.
+   Работает только контраст: рамка заметная, активная залита синим. */
 .menu-btn {
   display: inline-flex;
   align-items: center;
@@ -237,33 +343,117 @@ footer { color: var(--muted); font-size: 13px; text-align: center; padding: 18px
   box-shadow: var(--shadow-sm);
   transition: background-color .15s ease, box-shadow .15s ease, transform .05s ease;
 }
-.menu-btn:hover { background: var(--hover); border-color: var(--blue); box-shadow: var(--shadow-md); }
+.menu-btn:hover {
+  background: var(--blue-soft);
+  border-color: var(--blue);
+  box-shadow: var(--shadow-md);
+}
 .menu-btn:active { transform: translateY(1px); }
-.menu-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
-.menu-btn.active .menu-count { background: rgba(255, 255, 255, .28); color: #fff; }
+/* Активная вкладка — светло-голубая с синим текстом, а не сплошной синий.
+   Сплошная заливка перевешивала сам блок расписания: вкладка становилась
+   самым заметным пятном на странице, хотя это всего лишь фильтр. */
+.menu-btn.active {
+  background: var(--blue-soft);
+  border-color: var(--blue);
+  color: var(--blue-deep);
+  box-shadow: inset 0 -2px 0 var(--blue), var(--shadow-sm);
+}
+.menu-btn.active .menu-count {
+  background: var(--blue);
+  color: var(--on-blue-strong);
+}
 .menu-count {
-  background: var(--surface-3);
-  color: var(--muted);
+  /* Через переменную, а не зашитым светлым цветом: зашитый #e8eef6
+     в тёмной теме давал светлый текст на светлой плашке (1.2:1) —
+     счётчики групп и преподавателей пропадали совсем. */
+  background: var(--surface-2);
+  color: var(--muted-strong);
   border-radius: 10px;
   padding: 1px 8px;
   font-size: 12px;
   font-weight: 600;
 }
-.menu-link {
+/* Масштаб таблицы. Нужен людям, которые не знают про Ctrl +/−: старое
+   расписание на экране на 1920 пикселей иначе не прочитать.
+   Масштабируется только содержимое блока, а не меню, — иначе кнопки
+   увеличивались бы вместе с таблицей и их стало бы не нажать. */
+.zoom-ctl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.zoom-btn {
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  border-radius: 5px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0 8px;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.zoom-btn:hover:not(:disabled) {
+  background: var(--hover);
+  border-color: var(--blue);
+  box-shadow: var(--shadow-md);
+}
+
+.zoom-btn:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+/* Подпись с текущим процентом возвращает масштаб к 100% по клику —
+   иначе, уменьшив таблицу дважды, её уже не вернуть обратно вслепую. */
+.zoom-btn.zoom-level {
+  min-width: 58px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted-strong);
+}
+
+/* На печати масштаб всегда 100% — правило добавлено в общий блок @media
+   print ниже, а не отдельным: два блока печати в файле сбивают проверки,
+   которые ищут первый. Бумага не умеет масштабироваться, и увеличенная
+   таблица просто не влезла бы на лист. */
+
+/* Какие именно пары занимает растянутая лекция. Стоит под кодом группы
+   мелким шрифтом: это подпись к ширине ячейки, а не ещё одно занятие. */
+.lesson-span {
   color: var(--muted);
+  font-size: .9em;
+  letter-spacing: .01em;
+}
+
+.menu-link {
+  color: var(--blue);
   font-size: 14px;
   padding: 8px 11px;
   border-radius: 5px;
 }
-.menu-link:hover { background: var(--hover); color: var(--blue); text-decoration: none; }
+
+/* «Вместо прежнего преподавателя» в окне замен: приглушённая строка под
+   тем, кто ведёт занятие. Без зачёркивания — мелким текстом иначе не
+   разглядеть, а перечёркивание читалось бы как «занятие отменено». */
+.lesson-was {
+  color: var(--muted);
+  font-size: .92em;
+}
+.menu-link:hover { background: var(--hover); color: var(--blue-deep); text-decoration: none; }
 
 /* --------------------------------------------- блок расписания */
 .schedule-block {
-  background: var(--surface);
+  background: var(--surface-glass);
   border: 1px solid var(--line);
   border-radius: 0 0 8px 8px;
-  padding: 16px;
+  padding: 22px;
   min-height: 240px;
+  /* Главная белая панель: заметная граница и тень, чтобы она читалась
+     как основа сайта, а не сливалась с фоном страницы. */
   box-shadow: var(--shadow-lg);
   transition: opacity .15s ease, background-color .2s ease;
 }
@@ -309,8 +499,24 @@ footer { color: var(--muted); font-size: 13px; text-align: center; padding: 18px
 }
 .btn:hover { background: var(--hover); box-shadow: var(--shadow-md); text-decoration: none; }
 .btn-small { padding: 7px 12px; font-size: 13px; }
+/* основные кнопки — тот же мягкий синий, что и раньше */
 .btn-primary { background: var(--blue); border-color: var(--blue); color: #fff; }
 .btn-primary:hover { background: var(--blue-dark); }
+
+/* пауза на кнопке выгрузки: видно, что ссылка временно нерабочая */
+.dl-cool { opacity: 0.85; margin-left: 6px; font-variant-numeric: tabular-nums; }
+.btn.is-cooling { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+.btn.is-cooling:hover { background: var(--blue); box-shadow: var(--shadow-sm); }
+
+/* Шапка карточек — светло-голубая, как и шапка таблицы: одна система. */
+.cards-day-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 12px;
+  background: var(--head-blue);
+  border-bottom: 1px solid var(--head-blue-dark);
+}
 
 /* ------------------------------------------------- пустая заглушка */
 .placeholder {
@@ -323,7 +529,8 @@ footer { color: var(--muted); font-size: 13px; text-align: center; padding: 18px
   margin-bottom: 14px;
   border: 1px dashed var(--line);
   border-radius: 6px;
-  background: var(--surface-3);
+  background: var(--surface-glass);
+  box-shadow: var(--shadow-sm);
 }
 .placeholder.small { padding: 22px; }
 .placeholder-title { font-size: 16px; font-weight: 600; color: var(--text); margin: 0 0 6px; }
@@ -337,78 +544,190 @@ table.sheet-table {
   border-collapse: collapse;
   table-layout: fixed;
   background: var(--surface);
+  /* Рамки плотнее, чем раньше: с #a6a6a6 на светлом они читались как
+     сетка из волос, и таблица выглядела размытой. */
+  box-shadow: 0 1px 3px rgba(10, 22, 40, .10);
 }
 table.sheet-table th,
 table.sheet-table td { border: 1px solid var(--grid-line); }
 
+/* Шапка периодов — светло-голубая с тёмным текстом.
+   Насыщенный синий здесь давил: тёмная полоса поверх светлой сетки
+   читалась как отдельный блок, а не как заголовки периодов. Тёмный текст
+   на светло-голубом держит 13+:1 и при этом интерфейс остаётся воздушным. */
 table.sheet-table thead th {
-  background: var(--head-grey);
-  padding: 8px 4px;
-  font-size: 11px;
+  background: var(--head-blue);
+  border-color: var(--head-blue-dark);
+  padding: 10px 4px;
+  font-size: 11.5px;
   font-weight: 700;
   text-align: center;
   vertical-align: middle;
-  color: var(--text);
+  color: var(--on-blue);
+  letter-spacing: .3px;
 }
-table.sheet-table thead th.corner { width: 110px; }
+table.sheet-table thead th.corner {
+  width: 110px;
+  /* Тоже через переменную: зашитый светлый #cddff5 в тёмной теме
+     красил уголок светлым, а текст там светлый — 1.04:1, то есть
+     буквально невидимо. */
+  background: var(--head-blue-dark);
+  color: var(--on-blue-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
 table.sheet-table thead th .pair-time {
   display: block;
   font-weight: 400;
-  font-size: 10.5px;
-  color: var(--muted-strong);
+  font-size: 11px;
+  color: var(--on-blue-muted);
   margin-top: 3px;
-  line-height: 1.3;
+  white-space: nowrap;
+  line-height: 1.35;
 }
 
+/* Колонка дней: светло-синяя заливка вместо серой, тёмный жирный текст.
+   Дата под днём чуть спокойнее названия, но читается (10.05:1). */
 table.sheet-table .day-head {
   width: 110px;
   background: var(--day-grey);
-  padding: 6px 4px;
+  border-color: var(--grid-line);
+  padding: 8px 5px;
   text-align: center;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.35;
   color: var(--text);
 }
 table.sheet-table .day-head .day-name { display: block; }
 table.sheet-table .day-head .day-date {
   display: block;
-  font-weight: 400;
-  font-size: 10.5px;
+  font-weight: 600;
+  font-size: 11px;
   color: var(--muted-strong);
-  margin-top: 2px;
+  margin-top: 3px;
 }
 table.sheet-table tr.today-row .day-head {
   outline: 2px solid var(--blue);
   outline-offset: -2px;
+  background: var(--blue-soft);
 }
 
 table.sheet-table td.slot {
   padding: 0;
   vertical-align: top;
-  height: 62px;
+  /* Высота рассчитана на худший случай и обязана совпадать с min-height
+   блока занятия: если блок выше, ряд расползается, если ниже — под цветом
+   предмета остаётся белая полоса.
+
+   Худший случай — четыре строки текста: предмет, ФИО, перенёсшееся на две
+   строки, и аудитория. При 12px в 1.45 это 70px, плюс 4px под ними, плюс
+   22px резерва под плашку «замена» сверху и 16px под время снизу = 112px.
+
+   Это минимум, а не потолок: длинное ФИО на узком экране всё же растянет
+   ячейку, и тогда соседние ряды окажутся разной высоты. */
+  min-height: 138px;
   background: var(--surface);
 }
-/* пустая сетка до выбора фильтра — чуть спокойнее фон */
+/* пустая сетка до выбора фильтра — заметно спокойнее заполненной */
 table.sheet-table td.slot-empty { background: var(--surface-3); }
 
+/* Блок занятия. Фон приходит из БД (Subject.color) инлайн-стилем,
+   поэтому насыщенность задаём рамкой и текстом, а не заливкой. */
 table.sheet-table .lesson {
-  /* нижний отступ больше верхнего: в этом углу сидит время пары */
-  padding: 5px 6px 15px;
-  font-size: 11px;
+  /* Нижний отступ отделяет время пары, которое стоит в углу отдельной
+     строкой. Это единственная защита от наезда — горизонтальный запас
+     не нужен и вреден: он сжимал ФИО настолько, что имя рвалось
+     посреди слова («Кудзина/ва», «Петриченко/ко»). */
+/* Верхний отпуск — это резерв под плашку «замена». Плашка лежит поверх,
+   абсолютно, и высоты не добавляет, поэтому резерв задан у всех ячеек
+   одинаковым: иначе предмет в соседних ячейках стоял бы на разной
+   высоте.
+
+   Значение считано от плашки, а не взято «на глаз»: top 6px + кегль 10px
+   в строку 1.2 + вертикальные поля 1px*2 + рамка 1px = 22px. Было 26px —
+   на 4 лишних, предмет был прижат вниз, а в ячейках с заменой наезжал.
+
+   Нижний отпуск — под время пары: 14px, округлено до 16px. */
+  padding: 22px 8px 23px;
+  font-size: 12px;
   text-align: center;
-  line-height: 1.35;
-  height: 100%;
-  color: #1a1a1a;
+  line-height: 1.45;
+  /* Колонка: текст по центру по вертикали, плашка наложена сверху,
+     время вынуто из потока в угол. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;        /* по горизонтали — иначе растянет содержимое */
+  justify-content: center;   /* по вертикали — одинаково во всех ячейках */
+/* min-height, а не height: фиксированная высота запирала блок, и при
+      метке «замена» содержимое выходило за его пределы — аудитория
+      наезжала на время, а текст торчал за границу ячейки.
+
+      Значение конкретное, а не «100%»: процент у табличной ячейки
+      считается от высоты, которая для таблицы «авто», и в части
+      браузеров превращается в ноль. Тогда цвет предмета не доходил
+      до низа ячейки и под блоком оставалась белая полоса.
+
+      Высота покрывает ХУДШИЙ случай, а не средний: предмет, плюс ФИО,
+      перенёсшееся на две строки, плюс аудитория — четыре строки. Если
+      min-height меньше, одна такая ячейка растянет весь ряд, и соседние
+      строки таблицы окажутся разной высоты. Считается так:
+      4 строки по 12px в 1.45 = 70px, + 4px под ними, + 22 сверху,
+      + 16 снизу = 112px. */
+  min-height: 138px;
+  color: var(--text);
+  /* table-layout: fixed не расширяет колонку под текст, поэтому длинное
+     название предмета или ФИО без переноса вылезало за границу ячейки.
+     break-word, а не anywhere: anywhere рвёт слово в любом месте, даже
+     когда он помещается в строку целиком. */
+  overflow-wrap: break-word;
 }
-html[data-theme="dark"] table.sheet-table .lesson { color: #10161c; }
-table.sheet-table .lesson + .lesson { border-top: 1px dashed var(--line); }
-table.sheet-table .lesson-subject { font-weight: 700; }
-/* отступ справа — чтобы подписи не доезжали до времени в правом нижнем углу */
-table.sheet-table .lesson-meta { color: #2f3a45; font-size: 10.5px; margin-top: 2px; padding-right: 46px; }
-html[data-theme="dark"] table.sheet-table .lesson-meta { color: #172029; }
-table.sheet-table .lesson-meta .reason { color: var(--danger); font-weight: 600; }
-table.sheet-table .lesson.changed { background: rgba(229, 57, 53, .14); }
+/* Текст занятия: предмет, преподаватель, аудитория.
+   Никаких margin-top: auto и padding-top — блок сам центрирует содержимое
+   через justify-content, поэтому предмет стоит на одном уровне в каждой
+   ячейке. Резерв под плашку держит верхний отступ блока.
+   padding-bottom оставляет зазор до времени в углу.
+
+   Старый комментарий, оставленный как напоминание себе: здесь был
+   margin-top: auto, который прижимал группу к низу. Он молча ломал
+   justify-content — тот начинал игнорироваться, и ячейка с меткой
+   уезжала вниз. Такие хаки удаляют, а не правят: возврат свойства
+   снова отключит центрирование, и симптом вернётся. */
+.lesson-body {
+  padding-bottom: 4px;
+  /* Родитель центрирует элементы по горизонтали, поэтому обёртка
+     получилась бы по содержимому. Нужна вся ширина ячейки, иначе длинное
+     название предмета не перенесётся, а ФИО полезет через край. */
+  width: 100%;
+  max-width: 100%;
+}
+html[data-theme="dark"] table.sheet-table .lesson { color: #0e1620; }
+table.sheet-table .lesson + .lesson { border-top: 2px solid var(--lesson-border); }
+table.sheet-table .lesson-subject {
+  font-weight: 700;
+  overflow-wrap: break-word;
+}
+/* Подписи: преподаватель, аудитория. Отступа справа нет намеренно —
+   время пары стоит в углу отдельной строкой и отведено нижним отступом
+   блока. Горизонтальный запас здесь лишь сжимал ФИО и рвал имя
+   посреди слова. */
+table.sheet-table .lesson-meta {
+  color: #22303f;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 3px;
+}
+/* Каждая подпись переносится сама: длинное ФИО иначе вытолкнуло бы
+   соседние строки за пределы ячейки. break-word, а не anywhere: «anywhere»
+   рвёт слово буквально на любом символе, даже когда оно помещается целиком,
+   и превращает «Кудзинава» в «Кудзина / ва». */
+table.sheet-table .lesson-meta > div { overflow-wrap: break-word; }
+html[data-theme="dark"] table.sheet-table .lesson-meta { color: #16202b; }
+table.sheet-table .lesson.changed {
+  background-image: linear-gradient(rgba(198, 40, 40, .20), rgba(198, 40, 40, .20));
+  box-shadow: inset 0 0 0 2px var(--danger);
+}
 
 /* ------------------------- режим «Пары»: сетка карточек вместо колонок
    Пара выбрана одна, колонки не нужны: карточки занимают всю ширину
@@ -422,13 +741,19 @@ table.sheet-table .lesson.changed { background: rgba(229, 57, 53, .14); }
   border-bottom: 2px solid var(--blue-soft);
 }
 .cards-pair { font-size: 16px; font-weight: 700; color: var(--blue); }
-.cards-time { font-size: 13px; font-weight: 600; color: var(--muted-strong); }
+.cards-time {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted-strong);
+  white-space: nowrap;
+}
 
 .cards-day {
   margin-bottom: 14px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: var(--surface);
+  background: var(--surface-glass);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 .cards-day.is-today { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
@@ -438,12 +763,20 @@ table.sheet-table .lesson.changed { background: rgba(229, 57, 53, .14); }
   align-items: baseline;
   gap: 10px;
   padding: 7px 12px;
-  background: var(--day-grey);
-  border-bottom: 1px solid var(--grid-line);
+  background: var(--head-blue);
+  border-bottom: 1px solid var(--head-blue-dark);
 }
-.cards-day-name { font-size: 13px; font-weight: 700; color: var(--text); }
-.cards-day-date { font-size: 11.5px; color: var(--muted-strong); }
-.cards-day.is-today .cards-day-name { color: var(--blue-dark); }
+.cards-day-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--on-blue);
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+.cards-day-date { font-size: 11.5px; font-weight: 600; color: var(--on-blue-muted); }
+/* Шапка карточек светло-голубая в обеих темах, поэтому «сегодня»
+   нельзя красить в белый: на светло-голубом белый не читался. */
+.cards-day.is-today .cards-day-name { color: var(--on-blue); }
 
 /* auto-fill: карточки сами решают, сколько их влезет в строку.
    minmax ограничивает ширину, чтобы на одной паре с десятком групп
@@ -455,48 +788,136 @@ table.sheet-table .lesson.changed { background: rgba(229, 57, 53, .14); }
   padding: 10px 12px 12px;
 }
 .lesson-card {
-  padding: 7px 9px 18px;   /* снизу запас под время в углу */
-  font-size: 12px;
-  line-height: 1.4;
-  color: #1a1a1a;
-  border: 1px solid rgba(0, 0, 0, .12);
+  /* Сверху резерв под плашку — 22px, столько же сколько в таблице: кегль
+     плашки одинаковый, иначе предмет в карточке и в ячейке встал бы на
+     разной высоте при переключении режимов. Снизу 19px под время: в
+     карточке оно 11.5px в 5px от низа, то есть 13.8 + запас. */
+  padding: 22px 13px 23px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  border: 1px solid var(--lesson-border);
+  border-left: 4px solid var(--blue);
   border-radius: 5px;
   box-shadow: var(--shadow-sm);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  /* Та же раскладка, что и в таблице: плашка наложена сверху, текст
+     по центру, время в углу. Иначе карточки смотрелись бы иначе. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
-html[data-theme="dark"] .lesson-card { color: #10161c; }
-.lesson-card.changed { background-image: linear-gradient(rgba(229, 57, 53, .14), rgba(229, 57, 53, .14)); }
-.lesson-card .lesson-subject { font-weight: 700; }
-.lesson-card .lesson-meta { color: #2f3a45; font-size: 11px; margin-top: 3px; }
-html[data-theme="dark"] .lesson-card .lesson-meta { color: #172029; }
-.lesson-card .reason { color: var(--danger); font-weight: 600; }
-.lesson-card .flag { margin-bottom: 3px; }
-
-/* Время пары в правом нижнем углу карточки — в обоих режимах.
-   Карточка позиционируется, блок времени прижат к углу, а снизу добавлен
-   отступ: иначе время наезжало бы на аудиторию, которая слева внизу. */
-table.sheet-table .lesson,
-.lesson-card { position: relative; }
-.lesson-time {
-  position: absolute;
-  right: 6px;
-  bottom: 4px;
+html[data-theme="dark"] .lesson-card { color: #0e1620; }
+.lesson-card.changed {
+  background-image: linear-gradient(rgba(198, 40, 40, .20), rgba(198, 40, 40, .20));
+  border-left-color: var(--danger);
+}
+.lesson-card .lesson-subject { font-weight: 700; overflow-wrap: break-word; }
+.lesson-card .lesson-meta {
+  color: #22303f;
   font-size: 11px;
   font-weight: 600;
-  line-height: 1.2;
-  color: rgba(0, 0, 0, .55);
-  pointer-events: none;
-  white-space: nowrap;
+  margin-top: 3px;
 }
-.lesson-card .lesson-time { right: 8px; bottom: 5px; }
+/* как и в таблице: подпись переносится сама, а не выталкивает соседние строки */
+.lesson-card .lesson-meta > div { overflow-wrap: break-word; }
+html[data-theme="dark"] .lesson-card .lesson-meta { color: #16202b; }
+
+/* Плашка «замена» лежит поверх карточки, и подвал позиционируется от её
+   нижнего края — карточке нужен контекст позиционирования.
+
+   Высота подвала объявлена здесь, а не в самом подвале: плашка абсолютная
+   и в поток не входит, поэтому только карточка знает, сколько места под
+   неё освободить. Раньше ту же роль играл нижний отпуск под время в углу. */
+table.sheet-table .lesson,
+.lesson-card {
+  position: relative;
+  --lesson-foot-h: 19px;
+}
+
+/* Нижняя плашка: только аудитория, по центру.
+
+   Абсолютное положение — чтобы обойти внутренние отступы карточки и
+   прижать плашку ровно к нижнему краю, вплотную к нему. Раз она вне
+   потока, место под неё резервирует нижний отпуск карточки.
+
+   Фон — прозрачный белый поверх цвета предмета: плашка получается
+   светлее карточки при любом её цвете, и второй hex не нужен. Раньше
+   здесь был прозрачный чёрный, и плашка была темнее. */
+/* Фон плашки прозрачный: видно родной цвет карточки, который ею же
+   задан и заливет весь блок, включая низ, — плашка лежит поверх него.
+
+   Насыщенность даёт backdrop-filter: он берёт то, что нарисовано ПОД
+   элементом, и пересчитывает именно подложку. Текст при этом не
+   затрагивается — в отличие от filter, который применялся бы к самому
+   блоку вместе с содержимым и исказил бы надпись.
+
+   Раньше здесь был чёрный полупрозрачный слой: он смешивался с пастелью
+   и давал грязно-серый. Ни чёрный, ни белый слой не нужен — цвет нужно
+   усиливать, а не подмешивать.
+
+   Рамка полупрозрачная, а не чёрная: на пастельной заливке сплошная линия
+   выглядела бы гвоздём, мягкий контур лишь обозначает границу плашки.
+   Вертикальный отступ уменьшен до 1px, потому что рамка съела 2px из
+   высоты — при прежних 4px текст наезжал бы на рамку. Правило одно и для
+   таблицы, и для карточек: оба режима выглядят одинаково.
+
+   Цвет надписи — тот же, что у текста карточки (#0e1620). Плашка
+   насыщена backdrop-filter, и на ней светлый серый терялся, хотя на
+   бледном фоне карточки он ещё читался. */
+table.sheet-table .lesson-foot,
+.lesson-card .lesson-foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: var(--lesson-foot-h);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 4px;
+  background: transparent;
+  backdrop-filter: saturate(200%) brightness(95%);
+  -webkit-backdrop-filter: saturate(200%) brightness(95%);
+  border: 1px solid rgba(0, 0, 0, .2);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0e1620;
+  text-align: center;
+}
+/* «Ауд.» и номер не разрываются. Раньше делили строку со временем, и
+   номер отрывался от слова. */
+.lesson-room {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+
 .flag {
-  display: inline-block;
+  /* Плашка выведена из потока и просто накладывается сверху.
+     Раньше она была обычным элементом колонки и добавляла свою высоту
+     к содержимому: в ячейке с заменой предмет уезжал ниже, чем в
+     соседних. Абсолютное позиционирование делает высоту плашки
+     не влияющей на раскладку — она просто лежит поверх. */
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 16px);
   background: var(--danger);
   color: #fff;
   border-radius: 3px;
-  padding: 0 5px;
+  padding: 1px 6px;
   font-size: 10px;
-  margin-bottom: 2px;
+  /* Белым по 10px читалось плохо — на красном тонкий шрифт почти сливается
+     с фоном. Жирный и на полпикселя крупнее читается сразу. */
+  font-weight: 700;
+  letter-spacing: .2px;
+  white-space: nowrap;
 }
 .sheet-foot { font-size: 11px; color: var(--muted-strong); margin: 10px 0 0; }
 
@@ -581,15 +1002,77 @@ table.sheet-table .lesson,
 .picker-item-meta { font-size: 12px; color: var(--muted-strong); }
 .picker-empty { padding: 16px; color: var(--muted); font-size: 14px; text-align: center; }
 
+/* Фильтр по курсу в окне выбора. Общий для «Групп» и «Пар», чтобы окна
+   не выглядели разными инструментами: один компонент, одно место.
+
+   Активный курс — голубовато-синий, но не заливкой: тёмная подложка
+   съела бы строку списка, который сразу под ней. Вместо этого светлый
+   голубой фон, синяя рамка и синий текст. Тёмные оттенки фирменного
+   остаются в --blue/--blue-dark, но для заливки они слишком тяжёлые. */
+.picker-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 14px 10px;
+}
+.picker-filter {
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.25;
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted-strong);
+  cursor: pointer;
+}
+.picker-filter:hover {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  color: var(--blue-deep);
+}
+.picker-filter.active {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  color: var(--blue-deep);
+  font-weight: 600;
+}
+.picker-filter:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+/* Заголовок курса внутри списка пар: без него строки «1 пара» из разных
+   курсов сливаются в один столбик, и не видно, где кончился один курс
+   и начался другой. Разделитель — тонкая линия, чтобы не спорить с
+   рамками самих строк. */
+.picker-course-head {
+  padding: 10px 12px 5px;
+  border: none;
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--blue-deep);
+  background: none;
+}
+.picker-course-sep {
+  padding: 0;
+  margin: 6px 12px;
+  border: none;
+  border-top: 1px solid var(--line-soft);
+  height: 0;
+}
+
 /* ------------------------------------------------------ страницы */
 h1 { font-size: 22px; margin: 0 0 4px; }
 .page-sub { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
 .card {
-  background: var(--surface);
+  background: var(--surface-glass);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 18px;
+  padding: 20px;
+  margin-bottom: 20px;
   box-shadow: var(--shadow-md);
 }
 .search-form { display: flex; gap: 8px; }
@@ -651,9 +1134,67 @@ tr.changed td { background: rgba(229, 57, 53, .10); }
   font-size: 11px;
 }
 
+/* Тип занятия: «Лекция», «Практика», «Лабораторная работа». Раньше метка
+   брала цвет фона таблицы, и на экране читалось, что занятий нет. Теперь
+   подложка — цвет типа из справочника, а текст всегда тёмный: цвета
+   палитры светлые, и в тёмной теме светлый текст на них не читался бы.
+   Тёмная рамка отделяет метку от строки, где рядом может стоять такой же
+   светлый прямоугольник предмета. */
+.tag-type {
+  color: #10151b;
+  border-color: rgba(16, 21, 27, .18);
+  font-weight: 600;
+}
+
+/* Переход по названию группы или преподавателя в списке «Сегодня».
+   Раньше это была обычная ссылка: синий текст без подчёркивания, и на
+   странице из двадцати строк её не видно — непонятно, что на название
+   можно нажать. Теперь вид и рамка, и реакция на наведение.
+
+   Размер как у .tag — это список, а не кнопка действия: рамка говорит
+   «нажмите», а не «это главная кнопка страницы». */
+a.cell-link {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface-2);
+  color: var(--blue);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+a.cell-link:hover {
+  background: var(--hover);
+  border-color: var(--blue);
+  text-decoration: underline;
+}
+/* Клавиатура: ссылка и так получает рамку фокуса от браузера, но
+   вокруг «плашки» её почти не видно — подсвечиваем явно. */
+a.cell-link:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
 @media print {
-  .topbar, .menu-bar, .menu-link, .week-nav, .btn, footer, .placeholder { display: none !important; }
-  body { background: #fff; }
+    /* Полупрозрачная линия под шапкой печаталась бы серой полосой через
+       всю страницу. */
+    .topbar { border-bottom: none; }
+    .topbar, .menu-bar, .menu-link, .week-nav, .btn, footer, .placeholder { display: none !important; }
+
+  /* Пользователь увеличил таблицу на экране — на бумаге это лишнее: принтер
+     масштабирует сам, а увеличенная таблица не влезла бы на лист. */
+  .tt-wrap,
+  .cards-day { zoom: 1 !important; }
+  /* Фото на бумаге превращается в серый прямоугольник и съедает тонер,
+     поэтому фон убирается целиком. */
+  body,
+  body::before {
+    background: #fff;
+    background-image: none;
+  }
   .schedule-block { border: none; padding: 0; box-shadow: none; }
   table.sheet-table { min-width: 0; font-size: 9px; }
   /* карточки режима «Пары»: печать без рамок теней, но с рамкой ячейки */
@@ -686,8 +1227,7 @@ tr.changed td { background: rgba(229, 57, 53, .10); }
   .topbar .spacer { display: none; }
   .login-btn { margin-left: auto; padding: 7px 12px; }
   .logo { gap: 8px; }
-  .logo-emblem { width: 27px; height: 32px; min-width: 27px; min-height: 32px; max-width: 27px; max-height: 32px; flex-basis: 27px; }
-  .logo-word { width: 60px; height: 13px; min-width: 60px; min-height: 13px; max-width: 60px; max-height: 13px; flex-basis: 60px; }
+  .logo-full { width: 180px; height: 36px; min-width: 180px; min-height: 36px; max-width: 180px; max-height: 36px; flex-basis: 180px; }
 }
 
 @media (max-width: 620px) {
@@ -733,10 +1273,24 @@ tr.changed td { background: rgba(229, 57, 53, .10); }
   table.sheet-table thead th.corner { z-index: 3; }
   table.sheet-table .day-head { font-size: 11px; }
   table.sheet-table td.slot { height: 54px; }
-  table.sheet-table .lesson { padding: 5px 4px; font-size: 10.5px; }
+  /* min-height и отступы повторяют ячейку: без них блок требовал
+     112px и растягивал телефонную сетку вдвое, а нижний отпуск был
+     меньше высоты времени — время наезжало на текст.
+
+     Верхний отпуск 17px, а не 22px: плашка на телефоне мельче, ей нужно
+     top 4 + 9*1.2 + 2*1 + 1 = 17px. Нижний 13px — под время 9.5px,
+     стоящее в 3px от низа. */
+  table.sheet-table .lesson {
+    padding: 17px 4px 0;
+    font-size: 10.5px;
+    min-height: 54px;
+  }
+  /* Плашка на телефоне мельче: ячейка всего 54px, а место под неё
+     зарезервировано так же, как на большом экране. */
+  .flag { top: 4px; font-size: 9px; padding: 1px 5px; }
   table.sheet-table .lesson-meta { font-size: 10px; }
   .cards-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; padding: 8px 10px 10px; }
-  .lesson-card { padding: 6px 7px; font-size: 11px; }
+  .lesson-card { padding: 17px 7px 23px; font-size: 11px; }
   .lesson-card .lesson-meta { font-size: 10px; }
   .cards-head { margin-bottom: 10px; }
   .cards-pair { font-size: 15px; }
@@ -749,6 +1303,10 @@ tr.changed td { background: rgba(229, 57, 53, .10); }
   .picker-backdrop { padding: 12px 10px; align-items: stretch; }
   .picker { max-height: none; max-width: none; }
   .picker-items li { padding: 12px; }
+  /* фильтры курсов на телефоне: кнопки крупнее, но всё ещё в строку, если
+     помещаются, — вертикальный столбик съел бы пол-экрана */
+  .picker-filters { margin: 0 10px 10px; gap: 5px; }
+  .picker-filter { padding: 8px 11px; font-size: 13px; }
 
   .chips { gap: 6px; }
   .chip { padding: 7px 10px; }
@@ -765,8 +1323,7 @@ tr.changed td { background: rgba(229, 57, 53, .10); }
   .menu-group .menu-btn { font-size: 12px; padding: 9px 6px; }
   .login-btn span.login-icon { display: none; }
   .logo { gap: 7px; }
-  .logo-emblem { width: 23px; height: 27px; min-width: 23px; min-height: 27px; max-width: 23px; max-height: 27px; flex-basis: 23px; }
-  .logo-word { width: 51px; height: 11px; min-width: 51px; min-height: 11px; max-width: 51px; max-height: 11px; flex-basis: 51px; }
+  .logo-full { width: 140px; height: 28px; min-width: 140px; min-height: 28px; max-width: 140px; max-height: 28px; flex-basis: 140px; }
 }
 
 /* указатель: убираем подсветку при тапе на мобильных */
@@ -775,6 +1332,75 @@ tr.changed td { background: rgba(229, 57, 53, .10); }
   .week-btn:hover,
   .btn:hover { background: var(--surface-2); }
   .menu-btn.active:hover { background: var(--blue); }
+}
+
+/* ============================================================
+   Широкие экраны: Full HD, 2K, 4K.
+   ------------------------------------------------------------
+   На мониторе 2560 фиксированные 1400px оставляют по 580px пустоты
+   с каждой стороны, и расписание выглядит узкой полосой посреди
+   страницы. Лечится тремя ступенями, а не одним правилом: потолок
+   в пикселях и доля экрана (vw) идут в паре, потому что по одному
+   только vw на 3440 снова получается пустое поле, а по одному px
+   контейнер липнет к краю.
+
+   Границы — 1800, 2400 и 3200: ноутбук 16" (1728px) и любой
+   попроче продолжают получать обычные правила ниже. Мобильные
+   правила выше 1728px не достают, поэтому лестница идёт после них.
+   ============================================================ */
+
+/* от 1800px: Full HD и 2K */
+@media (min-width: 1800px) {
+  .container { max-width: min(1880px, 94vw); }
+  table.sheet-table { min-width: 1180px; }
+  table.sheet-table thead th.corner { width: 150px; }
+  table.sheet-table .day-head { width: 150px; }
+  table.sheet-table td.slot { min-height: 150px; }
+  /* Кегль вырос до 14px, значит и высота блока должна расти: строка
+     14px в 1.45 = 20px, четыре строки = 81px, + 4 снизу под время,
+     + 22 сверху под плашку, + 16 снизу = 123px → 132px с запасом.
+     Верхний отпуск остаётся 22px: плашка при смене кегля не растёт,
+     и резервы в разных ступенях должны совпадать, иначе предмет
+     начнёт прыгать по вертикали при изменении ширины окна. */
+  table.sheet-table .lesson { padding: 22px 14px 23px; font-size: 14px; min-height: 150px; }
+
+  .cards-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+  .lesson-card { padding: 22px 18px 23px; font-size: 14px; }
+
+}
+
+/* от 2400px: 2K без пустых полей по краям */
+@media (min-width: 2400px) {
+  .container { max-width: min(2280px, 95vw); }
+  table.sheet-table { min-width: 1380px; }
+  table.sheet-table thead th.corner { width: 190px; }
+  table.sheet-table .day-head { width: 190px; }
+  table.sheet-table td.slot { min-height: 162px; }
+  /* 16px: строка 23px, четыре строки = 93px, + 4 + 22 + 16 = 135px.
+     Запас до 158px — на пятую строку: длинные ФИО на широком экране
+     переносятся реже, но пара «Величкин Даниил Дмитриевич» в 16px
+     ещё занимает две строки, и без запада ряд растёт. */
+  table.sheet-table .lesson { padding: 22px 18px 23px; font-size: 16px; min-height: 162px; }
+
+  .cards-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .lesson-card { padding: 22px 22px 23px; font-size: 16px; }
+
+}
+
+/* от 3200px: 4K и ultrawide 3440 */
+@media (min-width: 3200px) {
+  .container { max-width: min(2720px, 96vw); }
+  table.sheet-table { min-width: 1560px; }
+  table.sheet-table thead th.corner { width: 230px; }
+  table.sheet-table .day-head { width: 230px; }
+  table.sheet-table td.slot { min-height: 188px; }
+  /* 18px: строка 26px, четыре строки = 104px, + 4 + 22 + 16 = 146px,
+     запас до 188px на пятую строку. */
+  table.sheet-table .lesson { padding: 22px 22px 23px; font-size: 18px; min-height: 188px; }
+
+  .cards-grid { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+  .lesson-card { padding: 22px 26px 23px; font-size: 18px; }
+
 }
 
 /* ============================================================
@@ -808,7 +1434,8 @@ tr.changed td { background: rgba(229, 57, 53, .10); }
 .uni-address {
   margin: 0 0 16px;
   font-style: normal;
-  font-size: 14px;
+  font-size: 14.5px;
+  font-weight: 500;
   line-height: 1.55;
   color: var(--text);
 }
@@ -818,20 +1445,31 @@ tr.changed td { background: rgba(229, 57, 53, .10); }
   display: grid;
   grid-template-columns: 120px 1fr;
   gap: 10px;
-  padding: 7px 0;
+  padding: 9px 0;
   border-bottom: 1px dashed var(--line-soft);
 }
 .uni-contact-row:last-child { border-bottom: 0; }
 .uni-contact-label {
   font-size: 13px;
-  font-weight: 600;
-  color: var(--muted-strong);
+  font-weight: 700;
+  /* было --muted: на полупрозрачной панели подписи тонули */
+  color: var(--text);
 }
 .uni-contact-value { margin: 0; font-size: 14px; }
-.uni-contact-link { display: block; font-weight: 600; }
+/* Ссылки — телефон и почта. Основной --blue давал здесь 3.9:1, ниже
+   порога: блок лежит на стеклянной панели, и поверх фото цифры телефона
+   читались плохо. Взят тот же синий, что у вкладок, — 7.4:1. */
+.uni-contact-link {
+  display: block;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--blue-deep);
+}
+.uni-contact-link:hover { color: var(--blue-dark); }
 .uni-contact-note {
   display: block;
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--muted-strong);
 }
 

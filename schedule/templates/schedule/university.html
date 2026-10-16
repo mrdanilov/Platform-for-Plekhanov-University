@@ -31,12 +31,6 @@
         </dd>
       </div>
 
-      <div class="uni-contact-row">
-        <dt class="uni-contact-label">{% t_ 'university_webmaster' %}</dt>
-        <dd class="uni-contact-value">
-          <a class="uni-contact-link" href="mailto:{{ uni.webmaster_email }}">{{ uni.webmaster_email }}</a>
-        </dd>
-      </div>
     </dl>
 
     <iframe class="uni-map" src="{{ uni.map_url }}" title="{% t_ 'university_map' %}"
@@ -49,7 +43,9 @@
     {% if sent %}
       <p class="uni-status">{% t_ 'university_sent' %}</p>
     {% endif %}
-    {% if form_errors %}
+    {% if rate_limited %}
+      <p class="uni-status is-error">{% t_ 'university_rate_limited' %}</p>
+    {% elif form_errors %}
       <p class="uni-status is-error">{% t_ 'university_send_error' %}</p>
     {% endif %}
 

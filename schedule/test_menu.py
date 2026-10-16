@@ -9,13 +9,10 @@ from django.utils import timezone
 from .models import Group, Lesson, LessonTime, Room, Subject, Teacher
 
 
-def monday_of(d):
-    return d - timedelta(days=d.weekday())
-
-
-def week_param(monday):
-    year, week, _ = monday.isocalendar()
-    return f'{year}-W{week:02d}'
+# Правило недели берётся из grid.py: своя копия здесь считала бы неделю иначе,
+# чем это делает приложение, и проверка недели проходила бы вхолостую
+# (задача 13 аудита).
+from .grid import _parity, monday_of, week_param
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -47,7 +44,7 @@ class MenuTests(TestCase):
         response = self.client.get(reverse('schedule:index'))
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context['empty'])
-        self.assertContains(response, 'Выберите группу или преподавателя')
+        self.assertContains(response, 'Выберите группу, кабинет или преподавателя')
         # расписания в блоке нет
         self.assertNotContains(response, 'Петров И.Р.')
 
@@ -207,15 +204,21 @@ class MenuTests(TestCase):
         self.lesson_a.week_parity = 1          # только нечётные недели
         self.lesson_a.save()
 
+        # Неделя ищется тем же правилом, что и в приложении. Раньше здесь
+        # стояло «нечётность по ISO-неделе календаря», и тест проверял не
+        # то, что делает сайт: как только чётность перевели на отсчёт от
+        # начала семестра, тест продолжил бы искать неделю по старому
+        # правилу и проверял бы уже не то поведение.
         def monday_with_parity(want_odd):
             monday = this_monday
-            while (monday.isocalendar()[1] % 2 == 1) != want_odd:
+            while (_parity(monday) == 1) != want_odd:
                 monday += timedelta(weeks=1)
             return monday
 
         even_monday = monday_with_parity(False)
         odd_monday = monday_with_parity(True)
 
+        self.assertNotEqual(even_monday, odd_monday)
         response = self.client.get(
             reverse('schedule:index'),
             {'view': 'group', 'id': self.group_a.pk, 'week': week_param(even_monday)},

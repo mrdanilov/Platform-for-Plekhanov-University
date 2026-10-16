@@ -12,7 +12,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 import secrets
+from datetime import date
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -40,6 +43,10 @@ def _secret_key():
 
 SECRET_KEY = _secret_key()
 
+# Кого сервер считает «своим». По умолчанию — только этот компьютер.
+# При показе коллегам сюда обязан попасть адрес машины в сети, иначе Django
+# ответит 400 «Invalid HTTP_HOST header» на первом же запросе. Скрипт
+# запуска show_localhost подставляет адрес сам.
 ALLOWED_HOSTS = [
     h for h in os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,[::1]').split(',')
     if h
@@ -49,15 +56,36 @@ CSRF_TRUSTED_ORIGINS = [
     o for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o
 ]
 
-# Безопасные куки и редирект на HTTPS — только когда DEBUG выключен
-SECURE_SSL_REDIRECT = not DEBUG
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
-SECURE_HSTS_SECONDS = 0 if DEBUG else 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
-SECURE_HSTS_PRELOAD = not DEBUG
+# Кому открыт вход в админку. Пусто — только локальная сеть (10.0.0.0/8,
+# 172.16.0.0/12, 192.168.0.0/16, 127.0.0.1, ::1). Это безопасное поведение
+# по умолчанию: сайт можно открыть в интернет, а войти в админку с чужого
+# адреса нельзя. Чтобы разрешить конкретный адрес, перечисли его здесь.
+# Проверка — schedule/admin_access.py.
+ADMIN_ALLOWED_IPS = os.environ.get('DJANGO_ADMIN_ALLOWED_IPS', '')
+
+# HTTPS-обвязка. По умолчанию она включается вместе с DEBUG=0 — так правильно
+# для боевого сервера за nginx.
+#
+# Но локальный показ коллегам идёт по обычному http в общей сети, и там
+# редирект на https ломает всё: браузер получит 301 на https://10.0.0.5:8000,
+# TLS там никто не слушает, и начальник увидит «не удаётся открыть страницу».
+# Secure-куки при этом тоже не ставятся — иначе вход в админку не работает.
+# Поэтому для показа: DJANGO_SECURE_SSL=0.
+#
+# На сервере переменную не задают — там всё остаётся как было.
+_USE_SSL = os.environ.get('DJANGO_SECURE_SSL', '1') == '1' and not DEBUG
+SECURE_SSL_REDIRECT = _USE_SSL
+SESSION_COOKIE_SECURE = _USE_SSL
+CSRF_COOKIE_SECURE = _USE_SSL
+SECURE_HSTS_SECONDS = 31536000 if _USE_SSL else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _USE_SSL
+SECURE_HSTS_PRELOAD = _USE_SSL
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
+# Health-check не должен уходить в редирект на https: балансировщик обычно
+# опрашивает приложение по http на localhost и не поймёт 301. Сам путь
+# проверяется без ведущего слэша — так его видит SecurityMiddleware.
+SECURE_REDIRECT_EXEMPT = [r'^healthz/']
 # Токен CSRF читается только шаблоном через {% csrf_token %}, скриптам он не
 # нужен. Если появится AJAX-отправка — значение лежит в DOM в скрытом поле,
 # поэтому закрывать cookie обратно не придётся.
@@ -69,6 +97,29 @@ CSRF_COOKIE_HTTPONLY = True
 # Включать только если сервер гарантированно переписывает заголовок
 # (nginx с proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for).
 TRUST_X_FORWARDED_FOR_IP = os.environ.get('DJANGO_TRUST_XFF', '0') == '1'
+
+# Считать ли, что соединение с клиентом защищено TLS, если об этом сообщает
+# заголовок X-Forwarded-Proto.
+#
+# Зачем. SECURE_SSL_REDIRECT выше всегда включён при DEBUG=0. Если сайт стоит за
+# Apache, который терминирует TLS и пересылает запрос в приложение по http, то
+# без этой настройки Django считает запрос незащищённым и отвечает 301 на
+# https. Apache снова пересылает запрос с тем же заголовком — и клиент залипает
+# в бесконечном цикле редиректов. Проверено: без заголовка главная отдаёт 200,
+# с ним — тоже 200.
+#
+# Почему по умолчанию выключено, по той же причине, что и DJANGO_TRUST_XFF:
+# заголовок присылает клиент. Если включить доверие, не переписав заголовок на
+# стороне Apache, любой сможет притвориться, что пришёл по https, — а это
+# отключает редирект на https для остальных и ослабляет проверку secure-кук.
+#
+# Включать только вместе с директивой на стороне сервера, которая всегда
+# перезаписывает заголовок, а не добавляет его:
+#   RequestHeader set X-Forwarded-Proto "https"     # в vhost на 443
+#   RequestHeader unset X-Forwarded-Proto "expr=%{REQUEST_SCHEME}"  # на 80
+TRUST_PROTO_HEADER = os.environ.get('DJANGO_TRUST_PROTO', '0') == '1'
+if TRUST_PROTO_HEADER:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
@@ -85,12 +136,22 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Отдаёт статику сам, без отдельного nginx и без DEBUG=True.
+    # Показ коллегам идёт с DEBUG=0, а runserver при DEBUG=0 статику не
+    # отдаёт — таблица осталась бы без оформления.
+        'whitenoise.middleware.WhiteNoiseMiddleware',
+        # Закрывает /admin/ для адресов, которым вход не разрешён. Идёт
+        # первым, чтобы решение принять до остальной работы: к админке
+        # дальше по цепочке ни одна обработка не дойдёт.
+        'schedule.admin_access.AdminGateMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # После CSRF: отказ проверки CSRF не должен съедать лимит входа в админку
+    'schedule.throttle.AdminLoginThrottleMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -101,11 +162,14 @@ TEMPLATES = [
         'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
+    'context_processors': [
+        'django.template.context_processors.request',
+        'django.contrib.auth.context_processors.auth',
+        'django.contrib.messages.context_processors.messages',
+        # Показывает кнопку «Войти» только там, где вход правда есть:
+        # иначе посетитель сайта из интернета увидит ссылку в никуда.
+        'schedule.admin_access.admin_link_context',
+    ],
         },
     },
 ]
@@ -170,7 +234,28 @@ WEEKDAYS = [
     (6, 'Суббота'),
 ]
 
-# Папка для файлов, загруженных на проверку перед импортом
+# Понедельник первой учебной недели семестра.
+#
+# Чётность недели («нечётная» / «чётная») вуз считает не по календарю, а
+# от начала семестра: нечётный семестр идёт по нечётным неделям, и так же
+# считается каждая пара внутри него. По ISO-неделе календаря считать нельзя
+# — номера не совпадают. Например, 12 октября 2026 это 42-я ISO-неделя
+# (чётная), но 7-я неделя семестра, то есть нечётная: файл вуза с расписанием
+# на 12–16 октября помечен как нечётный, и по календарю всё это расписание
+# скрывалось ровно на тех неделях, для которых оно и сделано.
+#
+# Значение взято из файла расписания: он говорит «7 неделя с 12 октября».
+# 12 октября — понедельник 7-й недели, значит первая неделя начиналась на
+# шесть недель раньше: понедельник 31 августа 2026 (не 7 сентября — отсчёт
+# с 7 сентября дал бы 12 октября шестой неделей, то есть чётной, и всё
+# расписание снова спряталось бы). Меняется раз в семестр, поэтому и лежит
+# в настройках.
+# None — считать по ISO-неделе календаря (старый, неверный для вуза способ).
+SEMESTER_FIRST_MONDAY = date(2026, 8, 31)
+
+# Папка для служебных файлов: журнал сторожа и бэкапы базы.
+# Раньше здесь складывались загруженные файлы перед импортом — импорт
+# удалён, папка осталась под то, что действительно ещё нужно.
 IMPORT_TMP_DIR = BASE_DIR / 'tmp_import'
 
 # Цвета шапки таблицы расписания — как в шаблоне
@@ -188,7 +273,33 @@ DAY_COLORS = {
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+# Ведущий слэш обязателен: без него Django отдаёт предупреждение
+# staticfiles.W005, а путь начинает собираться относительно текущего адреса,
+# то есть /block/ + static/... вместо /static/....
+STATIC_URL = '/static/'
+
+# Каталог для collectstatic. Без него команда падает с
+# ImproperlyConfigured, а при DEBUG=0 runserver не раздаёт статику вовсе —
+# сайт открывается без единого стиля. Папка уже в .gitignore.
+#
+# Путь можно переопределить, если корень проекта на сервере read-only:
+# DJANGO_STATIC_ROOT=/var/www/timetable-static
+STATIC_ROOT = os.environ.get('DJANGO_STATIC_ROOT') or (BASE_DIR / 'staticfiles')
+
+# Статика отдаётся прямо с диска (whitenoise). Если в DJANGO_STATIC_ROOT
+# попадёт папка с базой, то db.sqlite3 станет доступен всем, кто откроет
+# сайт: WhiteNoise отдаёт всё, что лежит в этой папке, и проверять расширение
+# он не станет. Ошибку в настройке ловим здесь, при запуске, а не потом,
+# когда кто-то скачает базу со всеми фамилиями преподавателей.
+_DB_FILE = (BASE_DIR / 'db.sqlite3').resolve()
+_STATIC_RESOLVED = Path(STATIC_ROOT).resolve()
+if _STATIC_RESOLVED == _DB_FILE.parent or _DB_FILE in _STATIC_RESOLVED.parents:
+    raise ImproperlyConfigured(
+        'DJANGO_STATIC_ROOT указывает на папку с базой данных (%s). '
+        'Оттуда отдаётся всё содержимое, включая db.sqlite3. Укажите '
+        'отдельную пустую папку, например /var/www/timetable-static.'
+        % _STATIC_RESOLVED
+    )
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

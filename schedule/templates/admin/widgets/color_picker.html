@@ -1,0 +1,95 @@
+{% comment %}
+Виджет выбора цвета: образцы палитры, пипетка браузера и текстовое поле.
+
+Скрипт намеренно написан без библиотек и без jQuery: админка Django его
+не грузит, а тянуть ради одного поля лишнюю зависимость не хочется.
+{% endcomment %}
+<div class="color-picker" data-color-picker>
+  <div class="color-picker-samples">
+    {% for c in widget.palette %}
+      <button type="button"
+              class="color-swatch{% if c|lower == widget.selected %} is-selected{% endif %}"
+              style="background: {{ c }};"
+              data-color="{{ c }}"
+              title="{{ c }}"
+              aria-label="Цвет {{ c }}"></button>
+    {% endfor %}
+  </div>
+
+  <div class="color-picker-row">
+    <input type="color"
+           class="color-picker-native"
+           value="{{ widget.picker_value }}"
+           data-color-input
+           aria-label="Выбрать цвет пипеткой">
+    <input type="{{ widget.type|default:'text' }}"
+           name="{{ widget.name }}"
+           value="{{ widget.value }}"
+           class="vTextField color-picker-text"
+           {% for k, v in widget.attrs.items %}{% if k != 'type' %}{{ k }}="{{ v }}"{% endif %}{% endfor %}
+           placeholder="#dcea9e"
+           spellcheck="false"
+           data-color-text>
+  </div>
+
+  <p class="color-picker-hint">
+    Выберите образец или свой цвет пипеткой. Текстовое поле заполнять
+    вручную не нужно — но там видно, что сохранится.
+  </p>
+
+  <div class="color-picker-preview">
+    <span class="color-picker-preview-label">Так будет выглядеть в расписании:</span>
+    <span class="color-picker-preview-box" data-color-preview>Занятие</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  function norm(v) {
+    v = (v || '').trim().toLowerCase();
+    return /^#([0-9a-f]{6})$/.test(v) ? v : null;
+  }
+
+  function init(root) {
+    var text = root.querySelector('[data-color-text]');
+    var native = root.querySelector('[data-color-input]');
+    var preview = root.querySelector('[data-color-preview]');
+    var swatches = root.querySelectorAll('.color-swatch');
+
+    function paint(value, markSelected) {
+      var c = norm(value);
+      if (native) native.value = c || '#e3f2fd';
+      if (preview) preview.style.background = c || 'transparent';
+      if (!markSelected) return;
+      swatches.forEach(function (s) {
+        s.classList.toggle('is-selected', norm(s.dataset.color) === c);
+      });
+    }
+
+    swatches.forEach(function (s) {
+      s.addEventListener('click', function () {
+        text.value = s.dataset.color;
+        paint(s.dataset.color, true);
+      });
+    });
+
+    if (native) {
+      native.addEventListener('input', function () {
+        text.value = native.value;
+        paint(native.value, true);
+      });
+    }
+
+    // Ввод руками: пока значение не настоящий HEX, рамка поля тревожная.
+    text.addEventListener('input', function () {
+      var ok = !!norm(text.value);
+      text.classList.toggle('is-invalid-color', !ok);
+      paint(text.value, ok);
+    });
+
+    paint(text.value, true);
+  }
+
+  document.querySelectorAll('[data-color-picker]').forEach(init);
+})();
+</script>

@@ -1,7 +1,24 @@
 {% load schedule_tags %}
+{% if courses and show_course_filter %}
+  <div class="picker-filters" role="group" aria-label="{% t_ 'course' %}">
+    <button type="button" class="picker-filter{% if not course %} active{% endif %}"
+            data-course="">{{ all_courses }}</button>
+    {% for c in courses %}
+      <button type="button" class="picker-filter{% if course == c %} active{% endif %}"
+              data-course="{{ c }}">{{ c }} {% t_ 'course' %}</button>
+    {% endfor %}
+  </div>
+{% endif %}
+
 {% if rows %}
   <ul class="picker-items">
     {% for row in rows %}
+      {% if row.new_course %}
+        {% if not forloop.first %}
+          <li class="picker-course-sep" role="presentation"></li>
+        {% endif %}
+        <li class="picker-course-head" role="presentation">{{ row.course_label }}</li>
+      {% endif %}
       <li data-id="{{ row.id }}" tabindex="0" role="option">
         <span class="picker-item-label">{{ row.label }}</span>
         {% if row.meta %}<span class="picker-item-meta">{{ row.meta }}</span>{% endif %}

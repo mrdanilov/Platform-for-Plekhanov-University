@@ -1,0 +1,50 @@
+[Unit]
+Description=Расписание (Django, gunicorn)
+After=network.target
+
+[Service]
+Type=notify
+# Запуск от пользователя, которому нельзя писать в системные папки.
+User=timetable
+Group=timetable
+WorkingDirectory=/opt/timetable
+
+# Настройки живут здесь, а не в самом репозитории: секретный ключ и
+# разрешённые адреса не должны попадать в git.
+EnvironmentFile=/etc/timetable.env
+Environment=DJANGO_SETTINGS_MODULE=config.settings
+Environment=PYTHONUNBUFFERED=1
+# Виртуальное окружение — в пути запуска: gunicorn запускается из
+# /opt/timetable/.venv/bin и не должен подхватить системный Python.
+Environment=PATH=/opt/timetable/.venv/bin:/usr/local/bin:/usr/bin:/bin
+
+ExecStart=/opt/timetable/.venv/bin/gunicorn config.wsgi:application \
+    --bind 127.0.0.1:8000 \
+    --workers 3 \
+    --timeout 60 \
+    --access-logfile - \
+    --error-logfile -
+
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+# --- Что приложению не нужно ------------------------------------------------
+# Сервису не требуются права root. Ниже — минимальный набор, которого
+# хватает и который не даёт процессу ничего лишнего.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+# Папка проекта и база должны оставаться доступными для записи.
+ReadWritePaths=/opt/timetable
+
+[Install]
+WantedBy=multi-user.target

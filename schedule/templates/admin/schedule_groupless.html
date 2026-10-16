@@ -1,0 +1,138 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Сырые занятия: не определилась группа{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Главная</a>
+  &rsaquo; <a href="{% url 'admin:schedule_lesson_changelist' %}">Занятия</a>
+  &rsaquo; Сырые занятия
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+
+  <div class="module" style="margin-bottom: 16px;">
+    <h2 style="margin: 0 0 8px;">Что это за раздел</h2>
+    <p style="margin: 0 0 8px;">
+      Здесь собраны занятия, у которых <b>не определилась группа</b>.
+      Появились они при загрузке файла: если ячейку не удалось разобрать
+      на части, её текст сохранился целиком, а группа осталась пустой.
+    </p>
+    <p style="margin: 0 0 8px;">
+      Такие занятия <b>почти не видны в расписании</b>. Если у записи указан
+      преподаватель, она попадёт в его расписание. А если не указан — она
+      не попадает никуда: ни в расписание группы (её нет), ни
+      преподавателя, ни аудитории. Запись лежит в базе, а на сайте её нет —
+      и заметить можно только здесь.
+    </p>
+    <p style="margin: 0;">
+      Чтобы запись появилась в расписании, проставьте группу: система
+      подберёт подходящую, если она есть в базе. Если занятие явно
+      лишнее — удалите его.
+    </p>
+  </div>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="messagelist {% if message.tags %}{{ message.tags }}{% endif %}">
+        <p>{{ message }}</p>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="module" style="margin-bottom: 16px;">
+    <h2 style="margin: 0 0 8px;">Сейчас в разделе</h2>
+    <p style="margin: 0;">
+      Всего: <b>{{ total }}</b>.
+      {% if total %}
+        Из них совсем не видны на сайте: <b>{{ invisible }}</b>.
+      {% else %}
+        Пусто — все занятия с группами. Это хорошо.
+      {% endif %}
+    </p>
+  </div>
+
+  {% if not total %}
+    <p>Разбирать нечего.</p>
+  {% else %}
+
+    <div class="module">
+      <table style="width: 100%;">
+        <thead>
+          <tr>
+            <th style="width: 110px;">День</th>
+            <th style="width: 90px;">Пара</th>
+            <th>Что записано в файле</th>
+            <th style="width: 190px;">Подсказка</th>
+            <th style="width: 130px;">Действие</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>{{ row.lesson.get_day_display }}</td>
+            <td>{{ row.lesson.lesson_time.number }}
+                <small>({{ row.lesson.lesson_time.start|time:"H:i" }})</small></td>
+            <td>
+              <div style="white-space: pre-wrap; max-width: 460px;">{{ row.lesson.raw_text|default:"(пусто)" }}</div>
+              {% if row.lesson.subject %}
+                <small>Предмет: {{ row.lesson.subject }}</small>
+              {% endif %}
+              {% if row.lesson.teacher %}
+                <small>Преподаватель: {{ row.lesson.teacher }}</small>
+              {% else %}
+                <small style="color:#ba2121">
+                  Преподаватель не указан — запись не видна ни в чьём расписании
+                </small>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.suggestion %}
+                <b style="color:#417690">вероятно, это {{ row.suggestion }}</b>
+              {% elif row.alternatives %}
+                <span>подходит несколько, выберите вручную:</span>
+                {% for g in row.alternatives %}
+                  <div>
+                    <a href="{% url 'admin:schedule_lesson_assign_group' row.lesson.pk g.pk %}">
+                      проставить {{ g }}
+                    </a>
+                  </div>
+                {% endfor %}
+              {% else %}
+                <span style="color:#666">
+                  совпадений не найдено — проставьте группу вручную
+                </span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.suggestion %}
+                <a class="button" style="padding:4px 10px;"
+                   href="{% url 'admin:schedule_lesson_assign_group' row.lesson.pk row.suggestion.pk %}">
+                  Проставить
+                </a>
+              {% endif %}
+              <a href="{% url 'admin:schedule_lesson_change' row.lesson.pk %}">
+                Открыть
+              </a><br>
+              <form method="post"
+                    action="{% url 'admin:schedule_lesson_delete_raw' row.lesson.pk %}"
+                    style="margin-top: 4px;"
+                    onsubmit="return confirm('Удалить запись безвозвратно?\n\nВ файле была строка:\n{{ row.lesson.raw_text|truncatechars:200 }}\n\nЭто единственная копия этого текста.');">
+                {% csrf_token %}
+                <button type="submit" class="button" style="padding:4px 10px; color:#ba2121;">
+                  Удалить
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  {% endif %}
+</div>
+{% endblock %}

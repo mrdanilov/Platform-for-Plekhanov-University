@@ -1,11 +1,21 @@
 """Страница «Информация о университете» и форма обратной связи."""
 
 import re
+from urllib.parse import unquote
 
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 
-from schedule.contacts import UNIVERSITY
+from schedule.contacts import (
+    MAP_CENTER,
+    MAP_LATITUDE,
+    MAP_LONGITUDE,
+    MAP_QUERY,
+    MAP_URL,
+    MAP_ZOOM,
+    UNIVERSITY,
+)
 from schedule.models import ContactMessage
 
 
@@ -59,7 +69,8 @@ class UniversityPageTests(TestCase):
     def test_other_pages_have_no_university_content(self):
         """Контакты не должны протекать на другие страницы."""
         html = self.client.get('/').content.decode()
-        self.assertNotIn(UNIVERSITY['webmaster_email'], html)
+        self.assertNotIn(UNIVERSITY['email'], html)
+        self.assertNotIn(UNIVERSITY['address'], html)
         self.assertNotIn('uni-form', html)
         self.assertNotIn('<iframe', html)
 
@@ -75,7 +86,6 @@ class UniversityPageTests(TestCase):
         self.assertIn('Плеханова', html)          # заголовок h1
         self.assertIn(UNIVERSITY['address'], html)
         self.assertIn(UNIVERSITY['email'], html)
-        self.assertIn(UNIVERSITY['webmaster_email'], html)
         for phone in UNIVERSITY['phones']:
             self.assertIn(phone['number'], html)
             self.assertIn(phone['note'], html)
@@ -83,7 +93,106 @@ class UniversityPageTests(TestCase):
     def test_phone_and_mail_are_links(self):
         html = self.client.get(reverse('schedule:university')).content.decode()
         self.assertEqual(html.count('href="tel:'), 2)
-        self.assertEqual(html.count('href="mailto:'), 2)
+        self.assertEqual(html.count('href="mailto:'), 1)
+
+    def test_webmaster_is_gone(self):
+        """Веб-мастер удалён: и из данных, и из разметки."""
+        self.assertNotIn('webmaster_email', UNIVERSITY)
+        html = self.client.get(reverse('schedule:university')).content.decode()
+        self.assertNotIn('12345@mail.ru', html)
+        self.assertNotIn('uni-webmaster', html)
+        from schedule.i18n import RU, UZ
+        for table in (RU, UZ):
+            self.assertNotIn(
+                'university_webmaster', table,
+                'подпись веб-мастера больше не используется — ключ можно убрать',
+            )
+
+    def test_address_is_the_current_one(self):
+        """Адрес приведён к виду РЭУ: индекс, «массив Ялангач», дом 3.
+
+        Проверяется по существу, а не сравнением с константой: правка
+        адреса в contacts.py и проверка, импортирующая ту же константу,
+        проходят вместе с любой опечаткой внутри неё.
+        """
+        address = UNIVERSITY['address']
+        for part in ('100164', 'Республика Узбекистан', 'Ташкент',
+                     'Мирзо Улугбекский', 'Ялангач', 'Шахриобод'):
+            with self.subTest(part=part):
+                self.assertIn(part, address)
+        self.assertNotIn('koʻchasi', address)
+        self.assertNotIn('Mirzo Ulug', address)
+
+    def test_email_is_the_current_one(self):
+        self.assertEqual(UNIVERSITY['email'], 'info@reu.uz')
+        self.assertNotIn('reu_plekhanov', UNIVERSITY['email'])
+        html = self.client.get(reverse('schedule:university')).content.decode()
+        self.assertIn('href="mailto:info@reu.uz"', html)
+        self.assertNotIn('info@reu_plekhanov.uz', html)
+
+    def test_map_query_names_the_branch_and_district(self):
+        """Запрос остаётся осмысленным текстом, хотя в URL он больше не
+        используется: хранится для людей, читающих код, и на случай
+        возврата к поиску по адресу.
+
+        Апостроф в «koʻchasi» поиском по карте не распознаётся, поэтому
+        запрос переписан латиницей без диакритики.
+        """
+        self.assertIn('Plekhanova', MAP_QUERY)
+        self.assertIn('Yalangach', MAP_QUERY)
+        self.assertIn("ko'chasi", MAP_QUERY)
+        for bad in ('ʻ', 'ʼ', 'koʻchasi'):
+            with self.subTest(bad=bad):
+                self.assertNotIn(bad, MAP_QUERY)
+
+    def test_map_url_is_clean(self):
+        """В URL не должно быть символов, ломающих атрибут src."""
+        for bad in ("'", '"', '<', '>', ' '):
+            with self.subTest(bad=bad):
+                self.assertNotIn(bad, MAP_URL)
+
+    def test_map_has_explicit_marker_not_search(self):
+        """Метка должна ставиться координатой, а не поиском по адресу.
+
+        При mode=search булавка появляется только если поиск что-то нашёл.
+        У неё не нашлось — карта открывалась без метки. Поэтому заданы
+        координаты центра и явная точка pt.
+        """
+        self.assertNotIn('mode=search', MAP_URL,
+                         'поиск по адресу не даёт гарантированной метки')
+        self.assertIn('pt=', MAP_URL, 'не задана метка на карте')
+        self.assertIn('%2Cpm2rdm', MAP_URL,
+                      'метка должна быть полноразмерной (не пунктирной)')
+        self.assertIn(f'll={MAP_CENTER}', MAP_URL)
+        self.assertIn(f'z={MAP_ZOOM}', MAP_URL)
+
+    def test_map_markers_are_inside_tashkent(self):
+        """Координаты не должны уехать за пределы Ташкента."""
+        lon, lat = (float(v) for v in unquote(MAP_CENTER).split(','))
+        self.assertTrue(41.0 < lat < 41.6, f'широта {lat} вне Ташкента')
+        self.assertTrue(68.5 < lon < 70.0, f'долгота {lon} вне Ташкента')
+
+    def test_map_points_at_the_university_building(self):
+        """Метка должна стоять на корпусе Плеханова.
+
+        Координаты заданы заказчиком: 41.349544, 69.336402. Проверяется
+        именно это здание — прошлый адрес ставил метку в стороне от
+        корпуса, потому что опирался на текстовый поиск.
+
+        Порядок важен: в Python широта идёт первой, в параметре Яндекса
+        `ll` первой идёт долгота. Перестановка даёт точку в 200 км.
+        """
+        self.assertEqual(MAP_LATITUDE, 41.349544)
+        self.assertEqual(MAP_LONGITUDE, 69.336402)
+
+        point = unquote(MAP_CENTER).split(',')
+        self.assertEqual(float(point[0]), MAP_LONGITUDE,
+                         'в ll= первой должна идти долгота')
+        self.assertEqual(float(point[1]), MAP_LATITUDE,
+                         'в ll= второй должна идти широта')
+
+        self.assertIn(f'll={MAP_LONGITUDE}%2C{MAP_LATITUDE}', MAP_URL)
+        self.assertIn(f'pt={MAP_LONGITUDE}%2C{MAP_LATITUDE}%2Cpm2rdm', MAP_URL)
 
     def test_map_is_responsive_iframe(self):
         html = self.client.get(reverse('schedule:university')).content.decode()
@@ -157,6 +266,11 @@ class UniversityPageTests(TestCase):
 
 class UniversityFormTests(TestCase):
     def setUp(self):
+        # Счётчик отправок живёт в кэше и общий для всех тестов: без очистки
+        # шестой POST в процессе падает с 429, и тесты формы ломаются о лимит,
+        # который проверяется отдельным тестом ниже.
+        cache.clear()
+        self.addCleanup(cache.clear)
         self.url = reverse('schedule:university_contact')
         self.data = {
             'name': 'Иван Иванов',
@@ -293,6 +407,84 @@ class UniversityFormTests(TestCase):
         """Без токена POST отклоняется — защита от подделки формы."""
         client = self.client_class(enforce_csrf_checks=True)
         self.assertEqual(client.post(self.url, self.data).status_code, 403)
+
+
+class UniversityContactsContrastTests(TestCase):
+    """Читаемость блока контактов.
+
+    Панель полупрозрачная, и под ссылками видна фотография. Проверяется
+    худший случай: подложка не белая, а тонированная multiply фотография.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        from django.contrib.staticfiles import finders
+        with open(finders.find('schedule/style.css'), encoding='utf-8') as fh:
+            cls.css = fh.read()
+        from schedule.test_ui import css_variables
+        cls.themes = css_variables(cls.css)
+
+    def contrast(self, fg, bg):
+        from schedule.test_ui import contrast
+        return contrast(fg, bg)
+
+    def rule(self, selector):
+        match = re.search(r'(?m)^' + re.escape(selector) + r'\s*\{([^}]*)\}',
+                          self.css)
+        self.assertIsNotNone(match, f'нет правила {selector}')
+        return match.group(1)
+
+    def resolve(self, rule, prop, theme):
+        match = re.search(prop + r':\s*var\((--[\w-]+)\)', rule)
+        self.assertIsNotNone(match, f'в правиле нет {prop} через переменную')
+        return self.themes[theme][match.group(1)[2:]]
+
+    def worst_case_background(self, theme):
+        """Панель .card = --surface-glass (0.95 белого) поверх --bg."""
+        return self.themes[theme]['bg']
+
+    def test_phone_and_email_links_are_readable(self):
+        """Ссылки были 3.9:1 — ниже порога. Цифры телефона тонули."""
+        rule = self.rule('.uni-contact-link')
+        for theme in ('light', 'dark'):
+            fg = self.resolve(rule, 'color', theme)
+            bg = self.worst_case_background(theme)
+            ratio = self.contrast(fg, bg)
+            with self.subTest(theme=theme):
+                self.assertGreaterEqual(
+                    ratio, 4.5,
+                    f'ссылка контакта в теме {theme}: {fg} на {bg} '
+                    f'= {ratio:.2f}:1',
+                )
+
+    def test_link_colour_is_not_the_pale_default_blue(self):
+        """Конкретная причина: --blue на стеклянной панели даёт 3.9:1."""
+        rule = self.rule('.uni-contact-link')
+        self.assertNotIn('var(--blue)', rule.replace('var(--blue-deep)', '')
+                         .replace('var(--blue-dark)', ''),
+                         'ссылка контакта снова на основном --blue')
+
+    def test_labels_are_dark_not_muted(self):
+        for selector in ('.uni-contact-label', '.uni-contact-note'):
+            rule = self.rule(selector)
+            for theme in ('light', 'dark'):
+                fg = self.resolve(rule, 'color', theme)
+                bg = self.worst_case_background(theme)
+                with self.subTest(selector=selector, theme=theme):
+                    self.assertGreaterEqual(
+                        self.contrast(fg, bg), 4.5,
+                        f'{selector} в теме {theme}: {fg} на {bg} '
+                        f'= {self.contrast(fg, bg):.2f}:1',
+                    )
+
+    def test_address_is_readable(self):
+        rule = self.rule('.uni-address')
+        for theme in ('light', 'dark'):
+            fg = self.resolve(rule, 'color', theme)
+            bg = self.worst_case_background(theme)
+            with self.subTest(theme=theme):
+                self.assertGreaterEqual(self.contrast(fg, bg), 4.5)
 
 
 class UniversityStyleTests(TestCase):

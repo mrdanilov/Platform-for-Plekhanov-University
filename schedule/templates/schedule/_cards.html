@@ -1,10 +1,4 @@
-{% comment %}
-Режим «Пары»: пара выбрана одна, поэтому таблица из восьми колонок
-бессмысленна — семь пустых. Здесь та же таблица, но «повёрнутая»:
-строка это день, а занятия этой пары по всем группам идут сеткой карточек
-на всю ширину. Колонки перестают быть узкими, карточки не выстраиваются
-в длинный столбик, пустого места не остаётся.
-{% endcomment %}
+
 {% load schedule_extras schedule_tags %}
 
 {% if not grid.has_cards %}
@@ -36,14 +30,23 @@
             <article class="lesson-card{% if cell.changed %} changed{% endif %}"
                      {% if cell.subject %}style="background: {{ cell.subject.color }};"{% endif %}>
               {% if cell.changed %}<span class="flag">{% t_ 'substitution' %}</span>{% endif %}
-              <div class="lesson-subject">{{ cell.subject_label }}</div>
-              <div class="lesson-meta">
-                {% if view != 'group' and cell.group %}<div>{{ cell.group }}</div>{% endif %}
-                {% if view != 'teacher' and cell.teacher %}<div>{{ cell.teacher }}</div>{% endif %}
-                {% if cell.room %}<div>{{ room_prefix }}{{ cell.room }}</div>{% endif %}
-                {% if cell.reason %}<div class="reason">{{ cell.reason }}</div>{% endif %}
+              <div class="lesson-body">
+                <div class="lesson-subject">{{ cell.subject_label }}</div>
+                <div class="lesson-meta">
+                  {# Объединённая группа — одно занятие, коды через запятую. #}
+                  {% if view != 'group' and cell.combined_groups %}
+                    <div class="lesson-combined">{% for g in cell.combined_groups %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+                  {% elif view != 'group' and cell.group %}
+                    <div>{{ cell.group }}</div>
+                  {% endif %}
+                  {% if view != 'teacher' and cell.teacher %}<div>{{ cell.teacher }}</div>{% endif %}
+                  {% if cell.spans > 1 %}<div class="lesson-span">{{ cell.spans }} пары подряд</div>{% endif %}
+                </div>
               </div>
-              <div class="lesson-time">{{ cell.lesson.lesson_time.start|time:"H:i" }}–{{ cell.lesson.lesson_time.end|time:"H:i" }}</div>
+              {# Подвал — только аудитория. Время стоит в заголовке дня. #}
+              <div class="lesson-foot">
+                <span class="lesson-room">{% if cell.room and view != 'room' %}{{ room_prefix }}{{ cell.room }}{% endif %}</span>
+              </div>
             </article>
           {% endfor %}
         </div>

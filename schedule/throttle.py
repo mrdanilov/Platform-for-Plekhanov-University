@@ -18,6 +18,15 @@
 
 from django.conf import settings
 from django.core.cache import cache
+from django.http import HttpResponse
+
+# Попытки входа в админку с одного адреса. Аккаунт в базе обычно один, и
+# Django admin не имеет ни своих лимитов, ни блокировок, ни 2FA — перебор
+# пароля к нему идёт без помех. Значение намеренно снисходительное: за адресом
+# может стоять весь кабинет вуза за одним роутером, и настоящий сотрудник не
+# должен вылететь из-за коллег. Это барьер для скрипта, а не защита пароля.
+ADMIN_LOGIN_RATE_LIMIT = 30
+ADMIN_LOGIN_RATE_WINDOW = 3600
 
 
 def client_ip(request):
@@ -52,3 +61,32 @@ def throttle_ok(key, limit, window=60):
     if cache.add(key, 1, window):
         return True          # первый запрос в этом окне
     return cache.incr(key) <= limit
+
+
+class AdminLoginThrottleMiddleware:
+    """Ограничение попыток входа в админку.
+
+    Считаем только POST на страницу входа: сама форма не ограничивается, иначе
+    после исчерпания лимита нельзя было бы даже увидеть её. Ответ 429 отдаём
+    доштатным HttpResponse — шаблон админки здесь всё равно не отрисовать.
+
+    Надёжнее закрыть перебор в nginx (`limit_req`): счётчик ниже живёт в кэше
+    Django, а он по умолчанию локальный для процесса — см. модуль выше.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.method == 'POST' and request.path.rstrip('/') == '/admin/login':
+            ip = client_ip(request)
+            key = f'admin-login:{ip}'
+            if not throttle_ok(key, ADMIN_LOGIN_RATE_LIMIT, ADMIN_LOGIN_RATE_WINDOW):
+                return HttpResponse(
+                    '<!doctype html><meta charset="utf-8">'
+                    '<title>429</title><p>Слишком много попыток входа. '
+                    'Попробуйте через час.</p>',
+                    content_type='text/html; charset=utf-8',
+                    status=429,
+                )
+        return self.get_response(request)

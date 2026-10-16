@@ -46,17 +46,22 @@
           <td>
             <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{{ row.color }};border:1px solid #bbb;"></span>
             {{ row.subject_label }}
-            {% if row.type %} <span class="tag">{{ row.type }}</span>{% endif %}
-            {% if row.changed %}<br><span class="changed-flag">{% t_ 'substitution' %}</span> {{ row.reason }}{% endif %}
+            {% if row.type %} <span class="tag tag-type"{% if row.type_color %} style="background: {{ row.type_color }};"{% endif %}>{{ row.type }}</span>{% endif %}
+            {% if row.changed %}<br><span class="changed-flag">{% t_ 'substitution' %}</span>{% endif %}
           </td>
           <td>
-            {% if row.group %}
-              <a href="/?view=group&amp;id={{ row.group.pk }}">{{ row.group }}</a>
+            {% if row.combined_groups %}
+              {# Объединённая группа: одна лекция, ссылка на каждую группу. #}
+              {% for group in row.combined_groups %}
+                <a class="cell-link" href="/?view=group&amp;id={{ group.pk }}">{{ group.name }}</a>{% if not forloop.last %}, {% endif %}
+              {% endfor %}
+            {% elif row.group %}
+              <a class="cell-link" href="/?view=group&amp;id={{ row.group.pk }}">{{ row.group }}</a>
             {% else %}—{% endif %}
           </td>
           <td>
             {% if row.teacher %}
-              <a href="/?view=teacher&amp;id={{ row.teacher.pk }}">{{ row.teacher }}</a>
+              <a class="cell-link" href="/?view=teacher&amp;id={{ row.teacher.pk }}">{{ row.teacher }}</a>
             {% else %}—{% endif %}
             {% if row.changed and row.lesson.teacher %}
               <span style="color:var(--muted);">({{ row.lesson.teacher }})</span>

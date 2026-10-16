@@ -1,0 +1,18 @@
+{% extends "admin/change_list.html" %}
+
+{% comment %}
+Ссылка на предпросмотр стоит наверху списка черновиков, а не в меню
+приложения: сотрудница приходит сюда, чтобы опубликовать правки, и должна
+сразу видеть, что получится на сайте.
+{% endcomment %}
+
+{% block object-tools-items %}
+  {% if draft_preview_url %}
+    <li>
+      <a href="{% url draft_preview_url %}" class="draft-preview-link">
+        Как будет выглядеть{% if pending_total %} ({{ pending_total }}){% endif %}
+      </a>
+    </li>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

@@ -1,4 +1,9 @@
-"""Контроль доступа: что открыто всем, а что только сотрудникам."""
+"""Контроль доступа: что открыто всем, а что только сотрудникам.
+
+Из прежних проверок остались выгрузки. Импорт расписания удалён вместе с
+``/import/`` и ``/import/template.csv``: сотрудницы заполняют базу вручную
+через админку, а страница импорта больше не существует.
+"""
 
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
@@ -9,12 +14,12 @@ from .models import Group, Lesson, LessonTime, Room, Subject, Teacher
 
 @override_settings(SECURE_SSL_REDIRECT=False)
 class AccessControlTests(TestCase):
-    """Гостя не пускаем туда, где меняются данные.
+    """Гость не должен получать данные, отданные без проверки прав.
 
-    staff_member_required уводит на /admin/login/ и гостя, и обычного
-    пользователя без прав staff — в обоих случаях это 302. Код 403 он
-    отдаёт только внутри самой админки; здесь поведение как у is_staff.
-    Главное для безопасности — что неstaff не получает 200.
+    Главное, что тут проверяется, — что выгрузка закрыта тем же
+    ``staff_member_required``, каким была защищена страница импорта. Если
+    страницу удалили вместе с декоратором, а декоратор на выгрузку не
+    перенесли, отчёт по расписанию уехал бы наружу.
     """
 
     @classmethod
@@ -25,56 +30,44 @@ class AccessControlTests(TestCase):
                                              is_staff=True)
 
     def setUp(self):
-        self.staff_url = reverse('schedule:import')
         self.xlsx_url = reverse('schedule:export_xlsx')
-        self.tpl_url = reverse('schedule:import_template')
-
-    # ------------------------------------------------------------- импорт
-
-    def test_anonymous_redirected_from_import(self):
-        response = self.client.get(self.staff_url)
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('/admin/login/', response['Location'])
-
-    def test_plain_user_rejected_from_import(self):
-        self.client.force_login(self.plain)
-        response = self.client.get(self.staff_url)
-        self.assertNotEqual(response.status_code, 200,
-                            'обычный пользователь не должен попасть в импорт')
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('/admin/login/', response['Location'])
-
-    def test_anonymous_cannot_post_to_import(self):
-        """Защита должна стоять на вьюхе, а не на форме: без неё и POST открыт."""
-        response = self.client.post(self.staff_url, {'apply': '1'})
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('/admin/login/', response['Location'])
-
-    def test_staff_passes_import(self):
-        self.client.force_login(self.staff)
-        self.assertEqual(self.client.get(self.staff_url).status_code, 200)
 
     # ---------------------------------------------------------- выгрузки
 
-    def test_xlsx_export_closed_for_anonymous(self):
-        response = self.client.get(self.xlsx_url)
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('/admin/login/', response['Location'])
+    def test_xlsx_export_open_to_anonymous(self):
+        """Книга доступна всем: в ней ровно те же данные, что в публичном CSV.
 
-    def test_xlsx_export_closed_for_plain_user(self):
-        self.client.force_login(self.plain)
+        Раньше выгрузка была закрыта «только для сотрудников», но ограничение
+        ничего не защищало — телефон и почта не попадают ни туда, ни туда,
+        а состав полей совпадает. Причина была в цене сборки, и она снята
+        лимитом и кэшем (см. test_export_protection.py).
+        """
         response = self.client.get(self.xlsx_url)
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('/admin/login/', response['Location'])
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content[:2], b'PK',
+                         'xlsx — это zip, сигнатура должна быть PK')
+
+    def test_xlsx_export_open_to_plain_user(self):
+        self.client.force_login(self.plain)
+        self.assertEqual(self.client.get(self.xlsx_url).status_code, 200)
+
+    def test_xlsx_export_carries_no_contacts(self):
+        """Причина открыть выгрузку: в ней нет ничего чувствительного.
+
+        Проверяется по всему ответу — искать «телефон» в тексте книги
+        бессмысленно, она zip-архив.
+        """
+        response = self.client.get(self.xlsx_url)
+        self.assertEqual(response.status_code, 200)
+        teacher = Teacher.objects.first()
+        if teacher is not None and teacher.phone:
+            self.assertNotIn(teacher.phone.encode(), response.content)
+        if teacher is not None and teacher.email:
+            self.assertNotIn(teacher.email.encode(), response.content)
 
     def test_staff_passes_xlsx_export(self):
         self.client.force_login(self.staff)
         self.assertEqual(self.client.get(self.xlsx_url).status_code, 200)
-
-    def test_template_csv_closed_for_anonymous(self):
-        response = self.client.get(self.tpl_url)
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('/admin/login/', response['Location'])
 
     # ----------------------------------------------------- что осталось открытым
 

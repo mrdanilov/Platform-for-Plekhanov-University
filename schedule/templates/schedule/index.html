@@ -8,13 +8,14 @@
 
   <div class="menu-bar">
     <div class="menu-group" role="group">
+      {% comment %}
+        Кнопка называется «Пары», а открывает список групп: сетка расписания
+        идёт по парам, и слово «пара» привычнее сотрудникам. В окне выбора
+        (data-title) остаётся «Группы» — выбираем именно группу.
+      {% endcomment %}
       <button type="button" class="menu-btn{% if view == 'group' %} active{% endif %}"
               data-kind="group" data-view="group" data-title="{% t_ 'menu_groups' %}" aria-haspopup="dialog">
-        {% t_ 'menu_groups' %}<span class="menu-count">{{ group_count }}</span>
-      </button>
-      <button type="button" class="menu-btn{% if view == 'pair' %} active{% endif %}"
-              data-kind="pair" data-view="pair" data-title="{% t_ 'menu_pairs' %}" aria-haspopup="dialog">
-        {% t_ 'menu_pairs' %}
+        {% t_ 'menu_lessons' %}<span class="menu-count">{{ group_count }}</span>
       </button>
     </div>
 
@@ -23,9 +24,35 @@
               data-kind="teacher" data-view="teacher" data-title="{% t_ 'menu_teachers' %}" aria-haspopup="dialog">
         {% t_ 'menu_teachers' %}<span class="menu-count">{{ teacher_count }}</span>
       </button>
+      <button type="button" class="menu-btn{% if view == 'room' %} active{% endif %}"
+              data-kind="room" data-view="room" data-title="{% t_ 'menu_rooms' %}" aria-haspopup="dialog">
+        {% t_ 'menu_rooms' %}<span class="menu-count">{{ room_count }}</span>
+      </button>
+      {% comment %}
+        Замены — про человека: кого заменили или кто вместо кого ведёт.
+        Поэтому в окне выбора список преподавателей, как у соседней вкладки,
+        а показываются только его замены за эту неделю.
+      {% endcomment %}
+      <button type="button" class="menu-btn{% if view == 'substitution' %} active{% endif %}"
+              data-kind="substitution" data-view="substitution" data-title="{% t_ 'menu_substitutions' %}" aria-haspopup="dialog">
+        {% t_ 'menu_substitutions' %}
+      </button>
     </div>
 
     <div class="spacer"></div>
+    {% comment %}
+      Масштаб для тех, кто не знает Ctrl +/−. Хранится в localStorage:
+      человек один раз настроил под свой экран — и дальше приходит на сайт
+      уже с нужным размером.
+    {% endcomment %}
+    <div class="zoom-ctl" role="group" aria-label="{% t_ 'zoom' %}">
+      <button type="button" class="zoom-btn" id="zoom-out"
+              title="{% t_ 'zoom_out' %}" aria-label="{% t_ 'zoom_out' %}">&minus;</button>
+      <button type="button" class="zoom-btn zoom-level" id="zoom-reset"
+              title="{% t_ 'zoom_reset' %}">100%</button>
+      <button type="button" class="zoom-btn" id="zoom-in"
+              title="{% t_ 'zoom_in' %}" aria-label="{% t_ 'zoom_in' %}">+</button>
+    </div>
     <a class="menu-link" href="/export/timetable.csv">{% t_ 'export' %}</a>
   </div>
 
@@ -59,7 +86,7 @@
   const listBox = document.getElementById('picker-list');
   const searchBox = document.getElementById('picker-search');
   const titleBox = document.getElementById('picker-title');
-  let currentView = '', currentKind = '';
+  let currentView = '', currentKind = '', currentCourse = '';
   // week_param через json_script, а не прямо в коде: значение из БД или
   // параметра запроса не должно оказываться в исходнике скрипта как есть
   let currentWeek = JSON.parse(
@@ -88,17 +115,30 @@
       ? await resp.text()
       : '<div class="placeholder"><p class="placeholder-title">—</p></div>';
     block.classList.remove('loading');
+    paintCooldown();   // новая кнопка должна сразу показать остаток паузы, а не через секунду
+    applyZoom();       // блок перезагрузили целиком — вместе с ним пришло и состояние масштаба
     markActive(view);
     history.replaceState(null, '', '/?' + url({ view: view, id: id, week: week }));
   }
 
   async function loadList(q) {
-    const resp = await fetch('/list/?' + url({ kind: currentKind, q: q }));
+    const params = { kind: currentKind, q: q, week: currentWeek };
+    if (currentCourse) params.course = currentCourse;
+    const resp = await fetch('/list/?' + url(params));
     listBox.innerHTML = await resp.text();
     listBox.querySelectorAll('[data-id]').forEach(function (row) {
       row.addEventListener('click', async function () {
         backdrop.hidden = true;
         await loadBlock(currentView, row.dataset.id, currentWeek);
+      });
+    });
+    // Фильтр по курсу живёт внутри загруженного фрагмента, поэтому после
+    // каждой загрузки слушатели надо повесить заново. Строка поиска при этом
+    // не сбрасывается: курс и запрос — независимые вещи.
+    listBox.querySelectorAll('.picker-filter').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        currentCourse = btn.dataset.course;
+        await loadList(searchBox.value);
       });
     });
   }
@@ -108,6 +148,7 @@
     currentView = view;
     titleBox.textContent = titles[kind] || '';
     searchBox.value = '';
+    currentCourse = '';
     backdrop.hidden = false;
     await loadList('');
     searchBox.focus();
@@ -115,6 +156,11 @@
 
   document.querySelectorAll('.menu-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
+      if (!btn.dataset.kind) {
+        // Окно без выбора (замены): сразу показываем сетку за текущую неделю.
+        loadBlock(btn.dataset.view, '', currentWeek);
+        return;
+      }
       openPicker(btn.dataset.kind, btn.dataset.view);
     });
   });
@@ -144,6 +190,126 @@
     currentWeek = link.dataset.week;
     await loadBlock(link.dataset.view, link.dataset.id, currentWeek);
   });
+
+  // Пауза на кнопке Excel: после скачивания 30 секунд повторный клик не проходит.
+  // Храним метку времени в localStorage — иначе F5 сбрасывает паузу и смысла нет.
+  // Читаем localStorage каждый тик, а не из памяти: вторая вкладка тоже увидит паузу.
+  const COOL_KEY = 'schedule_export_cool_until';
+  let coolMemory = 0;
+
+  function coolUntil() {
+    // берём максимум из памяти и localStorage: вкладка, которая только что
+    // кликнула, держит остаток у себя, а свежеоткрытая подхватывает из хранилища
+    try {
+      const raw = parseInt(localStorage.getItem(COOL_KEY) || '0', 10);
+      if (!isNaN(raw) && raw > coolMemory) coolMemory = raw;
+    } catch (e) {}
+    return coolMemory;
+  }
+
+  function setCoolUntil(until) {
+    coolMemory = until;
+    try { localStorage.setItem(COOL_KEY, String(until)); } catch (e) {}
+  }
+
+  function coolSecondsLeft() {
+    return Math.max(0, Math.ceil((coolUntil() - Date.now()) / 1000));
+  }
+
+  function paintCooldown() {
+    const sec = coolSecondsLeft();
+    document.querySelectorAll('[data-cooldown]').forEach(function (link) {
+      const out = link.querySelector('.dl-cool');
+      if (sec > 0) {
+        link.classList.add('is-cooling');
+        link.setAttribute('aria-disabled', 'true');
+        link.setAttribute('title',
+          link.dataset.coolTip + ' ' + sec + ' ' + (link.dataset.secLabel || ''));
+        if (out) out.textContent = '· ' + sec + ' ' + (link.dataset.secLabel || '');
+      } else {
+        link.classList.remove('is-cooling');
+        link.removeAttribute('aria-disabled');
+        link.removeAttribute('title');
+        if (out) out.textContent = '';
+      }
+    });
+  }
+
+  document.addEventListener('click', function (e) {
+    const link = e.target.closest('[data-cooldown]');
+    if (!link) return;
+    if (coolSecondsLeft() > 0) {  // пауза ещё идёт — ссылку не открываем
+      e.preventDefault();
+      return;
+    }
+    const wait = parseInt(link.dataset.cooldown, 10) || 30;
+    setCoolUntil(Date.now() + wait * 1000);
+    paintCooldown();
+  });
+
+  setInterval(paintCooldown, 1000);
+  paintCooldown();
+
+  // ------------------------------------------------------- масштаб таблицы
+
+  // Ctrl +/− знают немногие, а расписание на старом мониторе без увеличения
+  // не прочитать. Поэтому две кнопки рядом с «Выгрузкой».
+  //
+  // Масштабируется только то, что внутри блока расписания: таблица и карточки
+  // пар. Само меню остаётся прежнего размера — иначе кнопки увеличивались бы
+  // вместе с таблицей и их стало бы не нажать.
+  const ZOOM_KEY = 'schedule_zoom';
+  const ZOOM_MIN = 80;
+  const ZOOM_MAX = 160;
+  const ZOOM_STEP = 10;
+  const zoomValue = document.getElementById('zoom-reset');
+  const zoomOut = document.getElementById('zoom-out');
+  const zoomIn = document.getElementById('zoom-in');
+
+  function storedZoom() {
+    try {
+      const raw = parseInt(localStorage.getItem(ZOOM_KEY) || '100', 10);
+      // Всё, что вне 80–160, — мусор в хранилище или значение от другой
+      // версии страницы. Такое игнорируем и рисуем 100%.
+      if (!isNaN(raw) && raw >= ZOOM_MIN && raw <= ZOOM_MAX) {
+        return raw;
+      }
+    } catch (e) {}
+    return 100;
+  }
+
+  function applyZoom() {
+    if (!zoomValue) return;
+    const percent = storedZoom();
+    // zoom в процентах понимают все браузеры, которыми пользуются в вузе:
+    // Chrome, Edge, Яндекс.Браузер и Firefox 126+.
+    block.querySelectorAll('.tt-wrap, .cards-day').forEach(function (el) {
+      el.style.zoom = percent / 100;
+    });
+    zoomValue.textContent = percent + '%';
+    if (zoomOut) zoomOut.disabled = percent <= ZOOM_MIN;
+    if (zoomIn) zoomIn.disabled = percent >= ZOOM_MAX;
+  }
+
+  function changeZoom(delta) {
+    if (!zoomValue) return;
+    const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, storedZoom() + delta));
+    try {
+      localStorage.setItem(ZOOM_KEY, String(next));
+    } catch (e) {}
+    applyZoom();
+  }
+
+  // Скрипт общий для всех страниц, а блок масштаба стоит не везде.
+  if (zoomValue && zoomOut && zoomIn) {
+    zoomOut.addEventListener('click', function () { changeZoom(-ZOOM_STEP); });
+    zoomIn.addEventListener('click', function () { changeZoom(ZOOM_STEP); });
+    zoomValue.addEventListener('click', function () {
+      changeZoom(100 - storedZoom());
+    });
+  }
+
+  applyZoom();
 })();
 </script>
 {% endblock %}

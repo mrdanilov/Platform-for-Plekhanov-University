@@ -65,16 +65,168 @@ class ContrastTests(TestCase):
                       f'переменная --{name} не задана для темы {theme}')
         return self.themes[theme][name]
 
+    def rule(self, selector):
+        """Первое правило по точному селектору."""
+        match = re.search(r'(?m)^' + re.escape(selector) + r'\s*\{([^}]*)\}', self.css)
+        self.assertIsNotNone(match, f'нет правила {selector}')
+        return match.group(1)
+
     # ---------------------------------------------- что должно быть читаемо
 
+    def test_period_header_is_light_blue_not_dark(self):
+        """Шапка периодов — светло-голубая с тёмным текстом.
+
+        Насыщенный тёмно-синий вариант пробовался и отвергнут: тёмная
+        полоса поверх светлой сетки читалась как отдельный блок и давила на
+        расписание. Возврат к сплошному синему — регресс, ловится здесь.
+        """
+        block = self.rule('table.sheet-table thead th')
+        self.assertIn('background: var(--head-blue)', block)
+        self.assertIn('color: var(--on-blue)', block)
+        for theme in ('light', 'dark'):
+            head = self.var(theme, 'head-blue')
+            fg = self.var(theme, 'on-blue')
+            self.assertGreaterEqual(
+                contrast(fg, head), self.AAA, f'тема {theme}: {fg} на {head}')
+            # В светлой теме шапка обязана быть светлой: это и был смысл
+            # отказа от тёмно-синего варианта. В тёмной теме шапка тёмная,
+            # но проверяется контраст текста, а не тон заливки.
+            if theme == 'light':
+                r, g, b = (int(head[i:i + 2], 16) for i in (1, 3, 5))
+                self.assertGreater(
+                    r, 150, f'светлая шапка {head} ушла в тёмно-синий')
+                self.assertGreater(b, r, f'шапка {head} должна быть голубоватой')
+
+    def test_navigation_uses_soft_blue(self):
+        """Верхняя панель и вкладки — мягкий синий, не тёмно-синий.
+
+        Основной интерфейс должен оставаться светлым и воздушным.
+        """
+        for theme in ('light', 'dark'):
+            blue = self.var(theme, 'blue')
+            r, g, b = (int(blue[i:i + 2], 16) for i in (1, 3, 5))
+            self.assertGreater(b, r, f'--blue {blue} должен быть голубовато-синим')
+        self.assertNotEqual(self.var('light', 'blue'), '#0d47a1',
+                            'вернули слишком тёмный синий основного цвета')
+        topbar = self.var('light', 'topbar')
+        self.assertEqual(topbar, self.var('light', 'blue'),
+                         'шапка и основной синий должны совпадать, '
+                         'иначе интерфейс становится пёстрым')
+
     def test_pair_time_has_strong_contrast(self):
-        """Время пары 08:00–09:20 в шапке таблицы."""
-        self.assertIn('color: var(--muted-strong)', self.css)
-        for theme, bg in (('light', 'head-grey'), ('dark', 'head-grey')):
-            fg = self.var(theme, 'muted-strong')
-            ratio = contrast(fg, self.var(theme, bg))
-            self.assertGreaterEqual(ratio, self.AAA,
+        """Время пары 08:00–09:20 под номером периода."""
+        block = self.css[self.css.index('table.sheet-table thead th .pair-time'):]
+        self.assertIn('color: var(--on-blue-muted)', block[:400])
+        for theme in ('light', 'dark'):
+            ratio = contrast(self.var(theme, 'on-blue-muted'),
+                             self.var(theme, 'head-blue'))
+            self.assertGreaterEqual(ratio, self.AA,
                                     f'время пары в теме {theme}: {ratio:.2f}:1')
+
+    def _resolve(self, rule, prop_name, theme, default_vars):
+        """Значение свойства из правила: переменная → значение её темы."""
+        match = re.search(prop_name + r':\s*var\((--[\w-]+)\)', rule)
+        if match:
+            return self.var(theme, match.group(1)[2:])
+        match = re.search(prop_name + r':\s*(#[0-9a-fA-F]{3,6})', rule)
+        if match:
+            return match.group(1)
+        raise AssertionError(
+            f'в правиле нет {prop_name} с переменной или цветом:\n{rule[:200]}'
+        )
+
+    def test_menu_counts_readable_in_both_themes(self):
+        """Счётчики групп и преподавателей видны в обеих темах.
+
+        Здесь уже ловилась поломка: счётчик получил зашитый светлый фон,
+        а текст — тематический. В тёмной теме вышло 1.2:1, то есть
+        счётчика не было видно совсем. Поэтому фон обязан быть переменной,
+        а не константой.
+        """
+        rule = self.rule('.menu-count')
+        self.assertNotRegex(
+            rule, r'background(?:-color)?:\s*#[0-9a-fA-F]',
+            'фон счётчика зашит константой — в тёмной теме он не совпадёт '
+            'с цветом текста',
+        )
+        for theme in ('light', 'dark'):
+            bg = self._resolve(rule, 'background', theme, {})
+            fg = self._resolve(rule, 'color', theme, {})
+            ratio = contrast(fg, bg)
+            self.assertGreaterEqual(
+                ratio, self.AA,
+                f'счётчик в теме {theme}: {fg} на {bg} = {ratio:.2f}:1',
+            )
+
+    def test_active_tab_count_readable(self):
+        """Счётчик внутри активной вкладки.
+
+        Текст не зашит белым: в тёмной теме --blue светлеет до небесного
+        (2.2:1 с белым), поэтому цвет текста задан переменной темы.
+        """
+        rule = self.rule('.menu-btn.active .menu-count')
+        self.assertNotRegex(rule, r'color:\s*#f',
+                            'цвет счётчика зашит константой, а --blue в тёмной '
+                            'теме светлеет — текст станет нечитаемым')
+        for theme in ('light', 'dark'):
+            fg = self._resolve(rule, 'color', theme, {})
+            ratio = contrast(fg, self.var(theme, 'blue'))
+            self.assertGreaterEqual(ratio, self.AA,
+                                    f'тема {theme}: {fg}: {ratio:.2f}:1')
+
+    def test_table_corner_readable_in_both_themes(self):
+        """Уголок таблицы над колонкой дней — тоже через переменные."""
+        rule = self.rule('table.sheet-table thead th.corner')
+        for theme in ('light', 'dark'):
+            bg = self._resolve(rule, 'background', theme, {})
+            fg = self._resolve(rule, 'color', theme, {})
+            ratio = contrast(fg, bg)
+            self.assertGreaterEqual(
+                ratio, self.AA,
+                f'уголок в теме {theme}: {fg} на {bg} = {ratio:.2f}:1',
+            )
+
+    def test_today_marker_in_cards_follows_theme(self):
+        """«Сегодня» в карточках: шапка светло-голубая в обеих темах,
+        поэтому белым её красить нельзя — в светлой теме был 1.2:1."""
+        rule = self.rule('.cards-day.is-today .cards-day-name')
+        self.assertNotIn('#fff', rule,
+                         'белый текст нечитаем на светло-голубой шапке')
+        self.assertIn('var(--on-blue)', rule)
+        for theme in ('light', 'dark'):
+            ratio = contrast(self.var(theme, 'on-blue'),
+                             self.var(theme, 'head-blue'))
+            self.assertGreaterEqual(ratio, self.AA,
+                                    f'тема {theme}: {ratio:.2f}:1')
+
+    def test_language_switch_readable_in_both_themes(self):
+        """Активный язык RU/UZ: плашка всегда белая.
+
+        Значит и текст на ней должен быть константным, а не тематическим:
+        в тёмной теме --blue светлеет, и надпись на белой плашке пропадала.
+        """
+        rule = self.rule('.lang-opt.active')
+        self.assertIn('background: #fff', rule)
+        self.assertNotRegex(
+            rule, r'color:\s*var\(--',
+            'на постоянном белом фоне цвет текста обязан быть постоянным, '
+            'иначе тёмная тема его съест',
+        )
+        color = re.search(r'color:\s*(#[0-9a-fA-F]{3,6})', rule).group(1)
+        self.assertGreaterEqual(contrast(color, '#ffffff'), self.AAA,
+                                f'{color} на белом: {contrast(color, "#ffffff"):.2f}:1')
+
+    def test_login_button_readable_in_both_themes(self):
+        """Кнопка входа: в светлой теме синий на белом, в тёмной — наоборот."""
+        light = contrast(self.var('light', 'blue'), '#ffffff')
+        self.assertGreaterEqual(light, self.AA, f'светлая: {light:.2f}:1')
+        dark_rule = self.css[self.css.index('html[data-theme="dark"] .login-btn'):]
+        dark_rule = dark_rule[:dark_rule.index('\n}')]
+        self.assertIn('background: var(--blue)', dark_rule)
+        self.assertNotIn('#fff', dark_rule,
+                         'белая надпись на светло-голубом не читается')
+        self.assertGreaterEqual(contrast('#0a1219', self.var('dark', 'blue')),
+                                self.AA, 'тёмная тема')
 
     def test_day_date_has_strong_contrast(self):
         """Дата под названием дня."""

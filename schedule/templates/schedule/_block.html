@@ -1,19 +1,9 @@
-{% comment %}
-Блок расписания. Подключается и при обычной загрузке главной,
-и как фрагмент по /block/ при выборе без перезагрузки страницы.
-Таблица: дни в строках, пары в колонках — как в «Расписание_как_на_фото.xlsx».
-
-Для фильтра «Пары» колонка одна — выбрана конкретная пара, остальные семь
-пустых колонок только занимают место. Поэтому для этого режима таблица
-не рисуется вовсе: ниже тот же день-строками, но занятия идут сеткой карточек
-на всю ширину. Подробности — в schedule/templatetags/schedule_extras.py.
-{% endcomment %}
 {% load schedule_extras schedule_tags %}
 <div class="block-inner">
   {% if not empty %}
   <div class="block-head">
     <h2 class="block-title">
-      {% if view == 'teacher' %}{% t_ 'teacher' %}: {% elif view == 'room' %}{% t_ 'room' %}: {% endif %}{{ title }}
+      {% if view == 'teacher' %}{% t_ 'teacher' %}: {% elif view == 'room' %}{% t_ 'room' %}: {% elif view == 'substitution' %}{% t_ 'menu_substitutions' %}: {% endif %}{{ title }}
     </h2>
 
     <div class="week-nav">
@@ -28,9 +18,12 @@
 
     <div class="spacer"></div>
     <button class="btn btn-small" type="button" onclick="window.print()">{% t_ 'print' %}</button>
-    <a class="btn btn-small btn-primary"
-       href="/export/current.xlsx?view={{ view }}&amp;id={{ selected_id }}&amp;week={{ week_param }}"
-       >{% t_ 'excel' %}</a>
+<a class="btn btn-small btn-primary"
+       href="/export/timetable.xlsx?view={{ view }}&amp;id={{ selected_id }}&amp;week={{ week_param }}"
+       data-cooldown="30"
+       data-cool-tip="{% t_ 'download_wait' %}"
+       data-sec-label="{% t_ 'sec' %}"
+       >{% t_ 'excel' %}<span class="dl-cool"></span></a>
   </div>
   {% endif %}
 
@@ -38,7 +31,7 @@
     <div class="placeholder small">
       <p class="placeholder-title">{% t_ 'no_lessons' %}</p>
       <p class="placeholder-sub">
-        Сначала задайте время пар в <a href="/admin/schedule/lessontime/">админке</a>.
+        {% if admin_link_visible %}Сначала задайте время пар в <a href="/admin/schedule/lessontime/">админке</a>.{% else %}Время пар ещё не задано в базе.{% endif %}
       </p>
     </div>
   {% else %}
@@ -65,6 +58,40 @@
                 <span class="day-name">{{ row.name }}</span>
                 <span class="day-date">{{ row.date_label }}</span>
               </th>
+{% comment %}
+                В окне кабинета лекция на две-три пары подряд занимает
+                аудиторию непрерывно и рисуется одной ячейкой на colspan.
+                В остальных окнах колонка на каждую пару.
+              {% endcomment %}
+              {% if row.columns %}
+                {% for column in row.columns %}
+                  <td class="slot{% if not column.cells %} slot-empty{% endif %}{% if column.colspan > 1 %} slot-run{% endif %}"
+                      {% if column.colspan > 1 %}colspan="{{ column.colspan }}"{% endif %}>
+                    {% for cell in column.cells %}
+                      <div class="lesson{% if cell.changed %} changed{% endif %}{% if cell.draft_new %} draft-new{% endif %}{% if cell.draft_changed %} draft-changed{% endif %}"
+                           {% if cell.subject %}style="background: {{ cell.subject.color }};"{% endif %}>
+                        {% if cell.changed %}<span class="flag">{% t_ 'substitution' %}</span>{% endif %}
+                        <div class="lesson-body">
+                          <div class="lesson-subject">{{ cell.subject_label }}</div>
+                          <div class="lesson-meta">
+                            {% if view != 'group' and cell.combined_groups %}
+                              <div class="lesson-combined">{% for g in cell.combined_groups %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+                            {% elif view != 'group' and cell.group %}
+                              <div>{{ cell.group }}</div>
+                            {% endif %}
+{% if view != 'teacher' and cell.teacher %}<div>{{ cell.teacher }}</div>{% endif %}
+{% if column.pairs_label %}<div class="lesson-span">{{ column.pairs_label }}</div>{% endif %}
+                          {% if cell.replaced_teacher %}<div class="lesson-was">{% t_ 'instead_of' %} {{ cell.replaced_teacher }}</div>{% endif %}
+                          </div>
+                        </div>
+                        <div class="lesson-foot">
+                          <span class="lesson-room">{% if cell.room and view != 'room' %}{{ room_prefix }}{{ cell.room }}{% endif %}</span>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </td>
+                {% endfor %}
+              {% else %}
               {% for lt in grid.lesson_times %}
                 {% get_row_cells row.cells lt.pk as cells %}
                 <td class="slot{% if empty %} slot-empty{% endif %}">
@@ -72,18 +99,27 @@
                     <div class="lesson{% if cell.changed %} changed{% endif %}"
                          {% if cell.subject %}style="background: {{ cell.subject.color }};"{% endif %}>
                       {% if cell.changed %}<span class="flag">{% t_ 'substitution' %}</span>{% endif %}
-                      <div class="lesson-subject">{{ cell.subject_label }}</div>
-                      <div class="lesson-meta">
-                        {% if view != 'group' and cell.group %}<div>{{ cell.group }}</div>{% endif %}
-                        {% if view != 'teacher' and cell.teacher %}<div>{{ cell.teacher }}</div>{% endif %}
-                        {% if cell.room %}<div>{{ room_prefix }}{{ cell.room }}</div>{% endif %}
-                        {% if cell.reason %}<div class="reason">{{ cell.reason }}</div>{% endif %}
+                      <div class="lesson-body">
+                        <div class="lesson-subject">{{ cell.subject_label }}</div>
+                        <div class="lesson-meta">
+                          {% if view != 'group' and cell.combined_groups %}
+                            <div class="lesson-combined">{% for g in cell.combined_groups %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+                          {% elif view != 'group' and cell.group %}
+                            <div>{{ cell.group }}</div>
+                          {% endif %}
+                          {% if view != 'teacher' and cell.teacher %}<div>{{ cell.teacher }}</div>{% endif %}
+                          {% if column.pairs_label %}<div class="lesson-span">{{ column.pairs_label }}</div>{% endif %}
+                          {% if cell.replaced_teacher %}<div class="lesson-was">{% t_ 'instead_of' %} {{ cell.replaced_teacher }}</div>{% endif %}
+                        </div>
                       </div>
-                      <div class="lesson-time">{{ cell.lesson.lesson_time.start|time:"H:i" }}–{{ cell.lesson.lesson_time.end|time:"H:i" }}</div>
+                      <div class="lesson-foot">
+                        <span class="lesson-room">{% if cell.room and view != 'room' %}{{ room_prefix }}{{ cell.room }}{% endif %}</span>
+                      </div>
                     </div>
                   {% endfor %}
                 </td>
               {% endfor %}
+              {% endif %}
             </tr>
           {% endfor %}
         </tbody>

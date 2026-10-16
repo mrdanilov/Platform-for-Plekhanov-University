@@ -12,16 +12,13 @@
   <div class="container">
 
     <a class="logo" href="/" title="{% t_ 'brand' %}">
-      <img class="logo-emblem" src="{% asset 'schedule/img/plekhanova_emblem.png' %}"
-           alt="" aria-hidden="true">
-      <img class="logo-word" src="{% asset 'schedule/img/plekhanova_wordmark_white.png' %}"
+      <img class="logo-full" src="{% asset 'schedule/img/plekhanova_logo_120.png' %}"
            alt="{% t_ 'brand' %}">
     </a>
 
     <nav>
       <a href="/" class="{% block nav_home %}{% endblock %}">{% t_ 'nav_home' %}</a>
       <a href="/today/" class="{% block nav_today %}{% endblock %}">{% t_ 'nav_today' %}</a>
-      <a href="/import/">{% t_ 'import' %}</a>
       <a href="{% url 'schedule:university' %}"
          class="{% block nav_university %}{% endblock %}">{% t_ 'nav_university' %}</a>
     </nav>
@@ -43,9 +40,11 @@
       <span class="theme-icon" aria-hidden="true">☾</span>
     </button>
 
+{% if admin_link_visible %}
     <a class="login-btn" href="/admin/">
       <span class="login-icon" aria-hidden="true">⇥</span>{% t_ 'login' %}
     </a>
+{% endif %}
   </div>
 </div>
 

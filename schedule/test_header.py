@@ -2,6 +2,7 @@
 
 import re
 import struct
+import zlib
 from urllib.parse import quote
 
 from django.test import TestCase, override_settings
@@ -16,6 +17,63 @@ def png_size(path):
         raise AssertionError(f'{path} не похож на PNG')
     width, height = struct.unpack('>II', header[16:24])
     return width, height
+
+
+def png_pixels(path):
+    """Пиксели RGBA-картинки без Pillow: тот же приём, что в captcha.py.
+
+    Раскладка одна — 8 бит на канал, цветовой тип 6, — её и ждём от логотипа.
+    """
+    with open(path, 'rb') as fh:
+        data = fh.read()
+    if data[25] != 6:
+        raise AssertionError(f'{path}: ожидался RGBA (тип 6), а не {data[25]}')
+    width, height = struct.unpack('>II', data[16:24])
+
+    # IDAT собираем из всех кусков: картинка может быть порезана
+    stream, offset = bytearray(), 8
+    while offset < len(data):
+        (length,) = struct.unpack('>I', data[offset:offset + 4])
+        kind = data[offset + 4:offset + 8]
+        if kind == b'IDAT':
+            stream += data[offset + 8:offset + 8 + length]
+        elif kind == b'IEND':
+            break
+        offset += 12 + length
+
+    raw, step = zlib.decompress(bytes(stream)), width * 4
+    pixels, previous = [], bytearray(step)
+    for row in range(height):
+        start = row * (step + 1)
+        # первый байт строки — способ восстановления, а не пиксель
+        filter_type = raw[start]
+        line = bytearray(raw[start + 1:start + 1 + step])
+        # каждая строка хранит свой способ сжатия соседей — восстанавливаем
+        for i in range(step):
+            left = line[i - 4] if i >= 4 else 0
+            up = previous[i]
+            if filter_type == 0:
+                pass
+            elif filter_type == 1:
+                line[i] = (line[i] + left) & 0xFF
+            elif filter_type == 2:
+                line[i] = (line[i] + up) & 0xFF
+            elif filter_type == 3:
+                line[i] = (line[i] + (left + up) // 2) & 0xFF
+            else:                              # 4 — Paeth
+                upper_left = previous[i - 4] if i >= 4 else 0
+                # pa сравнивает с левым, pb — с верхним, pc — с верхним левым
+                near = abs(up - upper_left)
+                far = abs(left - upper_left)
+                across = abs(left + up - 2 * upper_left)
+                nearest = left if near <= far and near <= across else (
+                    up if far <= across else upper_left)
+                line[i] = (line[i] + nearest) & 0xFF
+        for column in range(0, step, 4):
+            pixels.append(tuple(line[column:column + 4]))
+        previous = line
+    return pixels
+
 
 from schedule import i18n
 from schedule.models import Group, Lesson, LessonTime, Subject, Teacher
@@ -81,11 +139,8 @@ class HeaderTests(TestCase):
 
     def test_logo_is_in_header(self):
         response = self.client.get(reverse('schedule:index'))
-        self.assertContains(response, 'img/plekhanova_emblem.png')
-        # в шапке (синяя полоса) используется белая надпись
-        self.assertContains(response, 'img/plekhanova_wordmark_white.png')
-        self.assertContains(response, 'class="logo-emblem"')
-        self.assertContains(response, 'class="logo-word"')
+        self.assertContains(response, 'img/plekhanova_logo_120.png')
+        self.assertContains(response, 'class="logo-full"')
 
     def test_logo_has_no_plate(self):
         """Подложка превращала логотип в кнопку с картинкой внутри."""
@@ -101,53 +156,63 @@ class HeaderTests(TestCase):
         for forbidden in ('background', 'box-shadow', 'border'):
             self.assertNotIn(forbidden, block)
 
-    def test_wordmark_on_blue_is_white(self):
-        """Тёмно-синие буквы на синей полосе не видны — в шапке нужна белая версия."""
-        from django.contrib.staticfiles import finders
+    def test_logo_on_blue_is_white(self):
+        """Тёмные буквы на синей полосе не видны: в шапке нужен белый лок-ап.
 
-        white = finders.find('schedule/img/plekhanova_wordmark_white.png')
-        dark = finders.find('schedule/img/plekhanova_wordmark.png')
-        self.assertIsNotNone(white)
-        self.assertIsNotNone(dark)
-        # белая версия заметно легче: у неё нет цветных пикселей
-        import os
-
-        self.assertLess(os.path.getsize(white), os.path.getsize(dark))
-        # в шапке подключена именно белая
-        html = self.client.get(reverse('schedule:index')).content.decode()
-        self.assertIn('plekhanova_wordmark_white.png', html)
-        self.assertNotIn('plekhanova_wordmark.png"', html)
-
-    def test_logo_assets_exist_and_are_cropped(self):
-        """Файлы логотипа лежат в static и обрезаны по контенту."""
+        Проверяем по пикселям, а не по имени файла: перекрашенная картинка
+        называлась бы так же, а читалась бы хуже.
+        """
         import os
 
         from django.contrib.staticfiles import finders
 
-        for name in ('plekhanova_emblem.png', 'plekhanova_wordmark.png',
-                     'plekhanova_wordmark_white.png', 'plekhanova_logo.png'):
-            path = finders.find(f'schedule/img/{name}')
-            self.assertIsNotNone(path, name)
-            self.assertGreater(os.path.getsize(path), 1000, name)
+        path = finders.find('schedule/img/plekhanova_logo_120.png')
+        self.assertIsNotNone(path)
+        self.assertGreater(os.path.getsize(path), 1000)
 
-        # исходник 536x302 содержал большие пустые поля; обрезанные файлы плотнее
-        width, height = png_size(finders.find('schedule/img/plekhanova_logo.png'))
-        self.assertLess(width, 536)
-        self.assertLess(height, 302)
+        visible = {pixel[:3] for pixel in png_pixels(path) if pixel[3] > 200}
+        self.assertTrue(visible, 'логотип пустой — в шапке будет пустое место')
+        self.assertEqual(visible, {(255, 255, 255)},
+                         'в шапке логотип должен быть белым')
 
-    def test_logo_assets_have_transparent_background(self):
+    def test_logo_asset_exists_and_is_cropped(self):
+        """Файл логотипа лежит в static и обрезан по контенту.
+
+        Исходник обычно приходит с пустыми полями: на шапке высотой 82px они
+        съедают почти всю картинку, и логотип превращается в неразличимую полосу.
+        """
+        import os
+
+        from django.contrib.staticfiles import finders
+
+        path = finders.find('schedule/img/plekhanova_logo_120.png')
+        self.assertIsNotNone(path)
+        self.assertGreater(os.path.getsize(path), 1000)
+
+        width, height = png_size(path)
+        pixels = png_pixels(path)
+        columns = {index % width for index, pixel in enumerate(pixels)
+                   if pixel[3] > 200}
+        rows = {index // width for index, pixel in enumerate(pixels)
+                if pixel[3] > 200}
+        # у самого края альфа чуть ниже порога, поэтому сверяем поля,
+        # а не отдельные пиксели: пустые поля были по 15–20% от картинки
+        margins = (min(columns), width - 1 - max(columns),
+                   min(rows), height - 1 - max(rows))
+        self.assertLessEqual(max(margins[:2]), width * 0.02, 'пустые поля сбоку')
+        self.assertLessEqual(max(margins[2:]), height * 0.02, 'пустые поля сверху')
+
+    def test_logo_asset_has_transparent_background(self):
         """Фон должен быть прозрачным, иначе в шапке будет белый прямоугольник."""
         from django.contrib.staticfiles import finders
 
-        for name in ('plekhanova_emblem.png', 'plekhanova_wordmark.png',
-                     'plekhanova_wordmark_white.png'):
-            with open(finders.find(f'schedule/img/{name}'), 'rb') as fh:
-                data = fh.read()
-            # в PNG есть цветовой тип 6 (RGBA) или 4 (оттенки серого + альфа)
-            self.assertIn(data[25], (4, 6), f'{name}: нет альфа-канала')
+        with open(finders.find('schedule/img/plekhanova_logo_120.png'), 'rb') as fh:
+            data = fh.read()
+        # в PNG есть цветовой тип 6 (RGBA) или 4 (оттенки серого + альфа)
+        self.assertIn(data[25], (4, 6), 'нет альфа-канала')
 
     def test_logo_is_big_enough_to_read(self):
-        """Герб и надпись должны оставаться заметно крупнее «микроскопических» 34px."""
+        """Лок-ап должен оставаться заметно крупнее «микроскопических» 34px."""
         from django.contrib.staticfiles import finders
 
         with open(finders.find('schedule/style.css'), encoding='utf-8') as fh:
@@ -156,10 +221,8 @@ class HeaderTests(TestCase):
         def box(selector):
             return re.search(re.escape(selector) + r'\s*\{([^}]*)\}', css).group(1)
 
-        emblem_h = int(re.search(r'height:\s*(\d+)px', box('.logo-emblem')).group(1))
-        word_h = int(re.search(r'height:\s*(\d+)px', box('.logo-word')).group(1))
-        self.assertGreaterEqual(emblem_h, 38, 'герб должен быть не меньше 38px')
-        self.assertGreaterEqual(word_h, 16, 'надпись должна быть не меньше 16px')
+        logo_h = int(re.search(r'height:\s*(\d+)px', box('.logo-full')).group(1))
+        self.assertGreaterEqual(logo_h, 44, 'логотип должен быть не меньше 44px')
 
     def test_logo_boxes_are_fixed_in_every_breakpoint(self):
         """Ни в одном брейкпоинте width/height не должны расходиться с min/max.
@@ -172,24 +235,43 @@ class HeaderTests(TestCase):
         with open(finders.find('schedule/style.css'), encoding='utf-8') as fh:
             css = fh.read()
 
-        blocks = re.findall(r'\.logo-(emblem|word)\s*\{([^}]*)\}', css)
-        self.assertGreaterEqual(len(blocks), 6, 'ожидались базовое правило и два медиазапроса')
+        blocks = re.findall(r'\.logo-full\s*\{([^}]*)\}', css)
+        self.assertGreaterEqual(len(blocks), 3, 'ожидались базовое правило и два медиазапроса')
 
-        for name, body in blocks:
+        for body in blocks:
             sizes = dict(re.findall(r'(width|height|min-width|min-height|'
                                     r'max-width|max-height):\s*(\d+)px', body))
-            with self.subTest(selector=f'.logo-{name}'):
+            with self.subTest(selector='.logo-full'):
                 for prop in ('width', 'height', 'min-width', 'min-height',
                              'max-width', 'max-height'):
-                    self.assertIn(prop, sizes, f'.logo-{name}: нет {prop}')
+                    self.assertIn(prop, sizes, f'.logo-full: нет {prop}')
                 self.assertEqual(sizes['width'], sizes['min-width'],
-                                 f'.logo-{name}: min-width расходится с width')
+                                 f'.logo-full: min-width расходится с width')
                 self.assertEqual(sizes['width'], sizes['max-width'],
-                                 f'.logo-{name}: max-width расходится с width')
+                                 f'.logo-full: max-width расходится с width')
                 self.assertEqual(sizes['height'], sizes['min-height'],
-                                 f'.logo-{name}: min-height расходится с height')
+                                 f'.logo-full: min-height расходится с height')
                 self.assertEqual(sizes['height'], sizes['max-height'],
-                                 f'.logo-{name}: max-height расходится с height')
+                                 f'.logo-full: max-height расходится с height')
+
+    def test_logo_keeps_proportions(self):
+        """Ширина и высота должны держать пропорцию исходной картинки.
+
+        Иначе «120 лет» растягивается по горизонтали и цифры вытягиваются.
+        """
+        from django.contrib.staticfiles import finders
+
+        with open(finders.find('schedule/style.css'), encoding='utf-8') as fh:
+            css = fh.read()
+
+        ratio = png_size(finders.find('schedule/img/plekhanova_logo_120.png'))
+        expected = ratio[0] / ratio[1]
+        for body in re.findall(r'\.logo-full\s*\{([^}]*)\}', css):
+            sizes = dict(re.findall(r'(width|height):\s*(\d+)px', body))
+            with self.subTest(box=f'{sizes["width"]}x{sizes["height"]}'):
+                self.assertLessEqual(
+                    abs(int(sizes['width']) / int(sizes['height']) - expected),
+                    0.05, 'пропорции логотипа нарушены')
 
     def test_static_files_are_cache_busted(self):
         """Стили и картинки должны иметь ненулевую версию в адресе.
@@ -200,8 +282,7 @@ class HeaderTests(TestCase):
         """
         html = self.client.get('/').content.decode()
         for pattern in (r'/static/schedule/style\.css\?v=[1-9]\d*',
-                        r'/static/schedule/img/plekhanova_emblem\.png\?v=[1-9]\d*',
-                        r'/static/schedule/img/plekhanova_wordmark_white\.png\?v=[1-9]\d*'):
+                        r'/static/schedule/img/plekhanova_logo_120\.png\?v=[1-9]\d*'):
             self.assertRegex(html, pattern, f'нет рабочей версии в адресе: {pattern}')
         self.assertNotRegex(html, r'\?v=0\b',
                             'версия 0 — файл не найден, антикэш не работает')
@@ -234,12 +315,12 @@ class HeaderTests(TestCase):
         with open(finders.find('schedule/style.css'), encoding='utf-8') as fh:
             css = fh.read()
 
-        emblem_h = int(re.search(r'height:\s*(\d+)px',
-                                 re.search(r'\.logo-emblem\s*\{([^}]*)\}', css).group(1)).group(1))
+        logo_h = int(re.search(r'height:\s*(\d+)px',
+                               re.search(r'\.logo-full\s*\{([^}]*)\}', css).group(1)).group(1))
         bar_h = int(re.search(r'min-height:\s*(\d+)px',
                               re.search(r'\.topbar \.container\s*\{([^}]*)\}', css).group(1)).group(1))
-        self.assertLess(emblem_h, bar_h,
-                        'герб выше полосы — будет вылезать за шапку')
+        self.assertLess(logo_h, bar_h,
+                        'логотип выше полосы — будет вылезать за шапку')
 
     def test_dark_theme_keeps_logo_readable(self):
         """Подложки нет — надпись белая, поэтому тёмная тема её не ломает."""
@@ -251,7 +332,7 @@ class HeaderTests(TestCase):
 
     def test_logo_precedes_navigation(self):
         html = self.client.get(reverse('schedule:index')).content.decode()
-        logo = html.index('plekhanova_emblem.png')
+        logo = html.index('plekhanova_logo_120.png')
         nav = html.index('<nav>')
         self.assertLess(logo, nav, 'логотип должен быть левее навигации')
 
@@ -425,11 +506,11 @@ class HeaderTests(TestCase):
         block = html[html.index('id="schedule-block"'):html.index('picker-backdrop')]
         self.assertNotIn('data-week-nav', block)
         self.assertNotIn('block-title', block)
-        self.assertNotIn('export/current.xlsx', block)
+        self.assertNotIn('/export/timetable.xlsx', block)
 
     def test_placeholder_hint_present(self):
         response = self.client.get(reverse('schedule:index'))
-        self.assertContains(response, 'Выберите группу или преподавателя')
+        self.assertContains(response, 'Выберите группу, кабинет или преподавателя')
 
     # ------------------------------------------- после выбора фильтра
 

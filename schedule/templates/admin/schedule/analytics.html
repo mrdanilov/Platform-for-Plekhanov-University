@@ -1,0 +1,103 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Сводка по парам{% endblock %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate "Главная" %}</a>
+    &rsaquo; <a href="{% url 'admin:schedule_lesson_changelist' %}">Занятия</a>
+    &rsaquo; Сводка по парам
+  </div>
+{% endblock %}
+
+{% block content %}
+  <h1>Сводка по парам</h1>
+  <p class="analytics-lead">
+    Неделя {{ report.week_label }}, {{ report.parity_word }},
+    всего занятий: <strong>{{ report.grand_total }}</strong>.
+    Объединённые группы посчитаны одним занятием.
+  </p>
+
+  <h2>Распределение по парам и дням</h2>
+  <table class="analytics-grid">
+    <thead>
+      <tr>
+        <th>Пара</th>
+        <th>Время</th>
+        {% for title in report.day_titles %}<th>{{ title }}</th>{% endfor %}
+        <th>Итого</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in report.rows %}
+        <tr{% if row.total == 0 %} class="muted"{% endif %}>
+          <td>{{ row.lt.number }}-я</td>
+          <td>{{ row.lt.start|time:"H:i" }}–{{ row.lt.end|time:"H:i" }}</td>
+          {% for n in row.per_day %}<td>{{ n }}</td>{% endfor %}
+          <td><strong>{{ row.total }}</strong></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <th colspan="2">Итого за день</th>
+        {% for n in report.totals_per_day %}<th>{{ n }}</th>{% endfor %}
+        <th>{{ report.grand_total }}</th>
+      </tr>
+    </tfoot>
+  </table>
+
+  <h2>Перекосы</h2>
+  <ul class="analytics-facts">
+    {% if report.busiest %}
+      <li>
+        Самая загруженная пара — {{ report.busiest.lt.number }}-я
+        ({{ report.busiest.lt.start|time:"H:i" }}),
+        {{ report.busiest.total }} занятий.
+      </li>
+    {% endif %}
+    {% if report.quietest %}
+      <li>
+        Самая пустая пара — {{ report.quietest.lt.number }}-я
+        ({{ report.quietest.lt.start|time:"H:i" }}),
+        {{ report.quietest.total }} занятий. Разброс между парами:
+        {{ report.spread }} занятий.
+      </li>
+    {% endif %}
+    <li>
+      Занятий без аудитории: <strong>{{ report.no_room }}</strong>.
+      Занятий без типа: <strong>{{ report.no_type }}</strong>.
+    </li>
+  </ul>
+
+  <h2>Нагрузка по курсам</h2>
+  <p>
+    {% for course, count in report.course_load %}
+      {{ course }} курс — {{ count }}{% if not forloop.last %}, {% endif %}
+    {% endfor %}
+  </p>
+
+  <h2>Нагрузка на преподавателей</h2>
+  <table class="analytics-grid">
+    <thead><tr><th>Преподаватель</th><th>Занятий в неделю</th></tr></thead>
+    <tbody>
+      {% for teacher in report.top_teachers %}
+        <tr><td>{{ teacher.name }}</td><td>{{ teacher.count }}</td></tr>
+      {% empty %}
+        <tr><td colspan="2" class="muted">нет данных</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if report.groups_without_room %}
+    <h2>Группы, где есть занятия без аудитории</h2>
+    <p>{{ report.groups_without_room|join:", " }}</p>
+  {% endif %}
+
+  <p class="analytics-foot">
+    В базе {{ report.group_count }} групп,
+    {{ report.teacher_count }} преподавателей,
+    {{ report.room_count }} аудиторий.
+  </p>
+{% endblock %}

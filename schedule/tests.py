@@ -1,22 +1,21 @@
 """Тесты замен, вида «на сегодня» и выгрузки."""
 
+import io
 from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from openpyxl import load_workbook
 
 from .models import Group, Lesson, LessonTime, Room, Substitution, Subject, Teacher
 
 
-def monday_of(d):
-    return d - timedelta(days=d.weekday())
-
-
-def week_param(monday):
-    year, week, _ = monday.isocalendar()
-    return f'{year}-W{week:02d}'
+# Правило недели берётся из grid.py, а не копируется сюда: своя копия
+# расходилась с рабочей при первой же правке формата (задача 13 аудита).
+# Тест, который считает неделю по-своему, проверял бы не то, что в бою.
+from .grid import _parity, monday_of, week_param
 
 
 # Тесты должны работать и при DJANGO_DEBUG=0, где включён редирект на HTTPS
@@ -52,9 +51,57 @@ class SubstitutionTests(TestCase):
         )
         html = self._block()
         self.assertIn('замена', html)
-        self.assertIn('болезнь', html)
         self.assertIn('Сидорова', html)
         self.assertNotIn('Петров', html)
+
+    def test_substitution_reason_not_shown(self):
+        """Причина замены — личная информация преподавателя.
+
+        В расписании остаётся только метка «замена». Причина («болезнь»,
+        «диарея», семейные обстоятельства) остаётся в модели и админке, но не
+        попадает ни в сетку, ни в карточки, ни на страницу дня — и, что важнее,
+        в выгрузки: CSV и Excel публичны и скачиваются без входа.
+        """
+        Substitution.objects.create(
+            lesson=self.lesson, date=self.monday,
+            teacher=self.other_teacher, reason='диарея у учителя',
+        )
+        for label, html in (
+            ('сетка', self._block()),
+            ('карточки', self._block(view='pair', id=self.time.pk)),
+            ('страница дня', self.client.get(
+                reverse('schedule:day')).content.decode()),
+            ('выгрузка CSV', self.client.get(
+                reverse('schedule:export')).content.decode()),
+        ):
+            with self.subTest(label):
+                self.assertNotIn('диарея', html)
+                self.assertNotIn('class="reason"', html)
+
+    def test_substitution_reason_not_in_xlsx(self):
+        """Проверяется содержимое книги, а не её байты: текст лежит в XML
+        внутри zip, поэтому искать его надо разобранной книгой."""
+        Substitution.objects.create(
+            lesson=self.lesson, date=self.monday,
+            teacher=self.other_teacher, reason='диарея у учителя',
+        )
+        response = self.client.get(reverse('schedule:export_xlsx'))
+        book = load_workbook(io.BytesIO(response.content))
+        texts = [c.value for row in book.active.iter_rows()
+                 for c in row if isinstance(c.value, str)]
+        self.assertFalse(
+            [t for t in texts if 'диарея' in t],
+            'причина замены попала в книгу',
+        )
+
+    def test_substitution_reason_kept_in_admin(self):
+        """Причина не теряется: она нужна сотруднику, который её вносил."""
+        sub = Substitution.objects.create(
+            lesson=self.lesson, date=self.monday,
+            teacher=self.other_teacher, reason='болезнь',
+        )
+        sub.refresh_from_db()
+        self.assertEqual(sub.reason, 'болезнь')
 
     def test_substitution_visible_for_substituting_teacher(self):
         Substitution.objects.create(
@@ -80,8 +127,10 @@ class SubstitutionTests(TestCase):
     def test_substitution_visible_on_opposite_parity_week(self):
         self.lesson.week_parity = 1
         self.lesson.save()
+        # Неделя ищется тем же правилом, что и в приложении: по ISO-неделе
+        # календаря чётность считать нельзя, она живёт в grid._parity.
         even_monday = self.monday
-        while even_monday.isocalendar()[1] % 2 != 0:
+        while _parity(even_monday) != 2:
             even_monday += timedelta(weeks=1)
         Substitution.objects.create(
             lesson=self.lesson,
@@ -105,8 +154,11 @@ class SubstitutionTests(TestCase):
             teacher=self.other_teacher, reason='болезнь',
         )
         response = self.client.get(reverse('schedule:day'), {'day': 1})
-        self.assertContains(response, 'болезнь')
         self.assertContains(response, 'Сидорова')
+        self.assertContains(response, 'замена')
+        self.assertNotContains(
+            response, 'болезнь',
+            msg_prefix='причина замены на странице дня не показывается')
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -120,10 +172,14 @@ class DayViewTests(TestCase):
         )
 
     def test_day_view_respects_parity(self):
-        today = timezone.localdate()
-        monday = monday_of(today)
-        day_num = today.isoweekday()
-        parity = 1 if monday.isocalendar()[1] % 2 else 2
+        # День берём фиксированный, а не сегодняшний. Расписание живёт
+        # пн-сб (шесть дней), а в воскресенье isoweekday() даёт 7, и вьюха
+        # обрезает номер до 6 — тест падал каждое воскресенье независимо
+        # от кода. Чётность недели берётся у текущей недели, как её и
+        # считает вьюха без параметра week.
+        day_num = 1
+        monday = monday_of(timezone.localdate())
+        parity = _parity(monday)
 
         self.lesson.day = day_num
         self.lesson.week_parity = parity
@@ -165,12 +221,6 @@ class ExportViewTests(TestCase):
         self.assertIn('Группа', body)
         self.assertIn('ЭК-01', body)
         self.assertIn('Финансы', body)
-
-    def test_template_csv_is_offered(self):
-        self.client.force_login(User.objects.get(username='staff_x'))
-        response = self.client.get(reverse('schedule:import_template'))
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('День', response.content.decode('utf-8-sig'))
 
     def test_xlsx_layout_matches_photo_template(self):
         """Дни в строках, пары в колонках, серые шапки — как в файле-шаблоне."""

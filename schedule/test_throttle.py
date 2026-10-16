@@ -1,12 +1,16 @@
 """Лимиты живого поиска /list/ и получение IP клиента."""
 
+from unittest import mock
+
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from .models import Group, LessonTime, Teacher
-from .throttle import client_ip, throttle_ok
-from .views import PICKER_LIMIT, PICKER_RATE_LIMIT
+from . import captcha as cap
+from . import throttle
+from .models import ContactMessage, Group, LessonTime, Teacher
+from .throttle import (ADMIN_LOGIN_RATE_LIMIT, client_ip, throttle_ok)
+from .views import CONTACT_RATE_LIMIT, PICKER_LIMIT, PICKER_RATE_LIMIT
 
 
 class ThrottleTests(TestCase):
@@ -152,3 +156,135 @@ class TeacherFieldsTest(TestCase):
                                          phone='+998 71 000 00 02')
         teacher.refresh_from_db()
         self.assertEqual(teacher.phone, '+998 71 000 00 02')
+
+
+class ContactFormRateLimitTests(TestCase):
+    """Ограничение отправок формы «Связаться с нами».
+
+    Captcha от спама не спасает: пример арифметический, ответы перебираются
+    за секунды, а каждая удачная отправка — новая строка в ContactMessage.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        self.url = reverse('schedule:university_contact')
+        self.data = {
+            'name': 'Иван Иванов',
+            'email': 'ivan@example.com',
+            'message': 'Когда начинается сессия?',
+            'consent': '1',
+        }
+
+    def _post(self, **extra):
+        """POST с верным ответом на пример: нужно, чтобы лимит был единственной
+        причиной отказа, а не captcha."""
+        session = self.client.session
+        if session.get(cap.SESSION_KEY) is None:
+            cap.issue(session)
+            session.save()
+        data = session[cap.SESSION_KEY]
+        return self.client.post(self.url, dict(
+            self.data, captcha=data['answer'],
+            captcha_token=data['token'], **extra))
+
+    def test_limit_is_small_but_usable(self):
+        """Пять обращений в час — нормальный сотрудник столько не напишет,
+        а бот упирается в стену почти сразу."""
+        self.assertGreaterEqual(CONTACT_RATE_LIMIT, 3)
+        self.assertLessEqual(CONTACT_RATE_LIMIT, 20)
+
+    def test_posts_below_limit_are_accepted(self):
+        for _ in range(CONTACT_RATE_LIMIT):
+            self.assertEqual(self._post().status_code, 302)
+        self.assertEqual(ContactMessage.objects.count(), CONTACT_RATE_LIMIT)
+
+    def test_over_limit_is_refused(self):
+        for _ in range(CONTACT_RATE_LIMIT):
+            self._post()
+        blocked = self._post()
+        self.assertEqual(blocked.status_code, 429)
+
+    def test_blocked_request_writes_nothing(self):
+        """Главное: лимит защищает таблицу, а не только показывает страницу."""
+        for _ in range(CONTACT_RATE_LIMIT):
+            self._post()
+        self._post()
+        self.assertEqual(ContactMessage.objects.count(), CONTACT_RATE_LIMIT)
+
+    def test_blocked_page_explains_why(self):
+        for _ in range(CONTACT_RATE_LIMIT):
+            self._post()
+        html = self._post().content.decode()
+        self.assertIn('uni-status is-error', html)
+        self.assertIn('Слишком много обращений', html)
+
+    def test_captcha_untouched_by_refusal(self):
+        """Отказ по лимиту не съедает пример: иначе после лимита форму
+        нельзя было бы заполнить даже вручную."""
+        for _ in range(CONTACT_RATE_LIMIT):
+            self._post()
+        token = self._post().wsgi_request.session.get(cap.SESSION_KEY)
+        self.assertIsNotNone(token)
+
+    def test_limit_counts_before_field_check(self):
+        """Пустая форма тоже тратит квоту: иначе бот перебирает примеры
+        и набивает базу, отправляя заведомо невалидные данные."""
+        url = reverse('schedule:university_contact')
+        for _ in range(CONTACT_RATE_LIMIT):
+            self.client.post(url, {})
+        self.assertEqual(self.client.post(url, {}).status_code, 429)
+
+    def test_other_address_is_not_limited(self):
+        """Лимит на адрес, а не на весь сайт: за одним роутером может
+        сидеть весь деканат."""
+        for _ in range(CONTACT_RATE_LIMIT):
+            self._post()
+        response = self.client.post(self.url, dict(self.data),
+                                    REMOTE_ADDR='10.0.0.9')
+        self.assertNotEqual(response.status_code, 429)
+
+
+class AdminLoginRateLimitTests(TestCase):
+    """Перебор пароля к админке ограничен."""
+
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        self.url = '/admin/login/'
+        # Настоящий лимит (30 в час) проверяется константой, а циклы ниже
+        # идут на нём же — каждый рендер страницы админки небыстрый, и 60
+        # запросов в тесте занимают полминуты.
+        patcher = mock.patch.object(throttle, 'ADMIN_LOGIN_RATE_LIMIT', 3)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _post(self, **extra):
+        return self.client.post(self.url, {
+            'username': 'admin', 'password': 'wrong', 'next': '/admin/',
+        }, **extra)
+
+    def test_limit_constant(self):
+        self.assertGreaterEqual(ADMIN_LOGIN_RATE_LIMIT, 10)
+        self.assertLessEqual(ADMIN_LOGIN_RATE_LIMIT, 100)
+
+    def test_login_page_stays_open(self):
+        """Сама форма не ограничивается: после лимита администратор
+        должен хотя бы видеть её."""
+        for _ in range(throttle.ADMIN_LOGIN_RATE_LIMIT + 5):
+            self.assertEqual(self.client.get(self.url).status_code, 200)
+
+    def test_brute_force_is_cut_off(self):
+        for _ in range(throttle.ADMIN_LOGIN_RATE_LIMIT):
+            self.assertEqual(self._post().status_code, 200)
+        blocked = self._post()
+        self.assertEqual(blocked.status_code, 429)
+        self.assertIn('Слишком много попыток входа',
+                      blocked.content.decode('utf-8'))
+
+    def test_limit_is_per_address(self):
+        """Соседний кабинет за другим адресом не должен попадать под лимит."""
+        for _ in range(throttle.ADMIN_LOGIN_RATE_LIMIT):
+            self._post(REMOTE_ADDR='10.0.0.5')
+        self.assertNotEqual(self._post(REMOTE_ADDR='10.0.0.6').status_code,
+                            429)

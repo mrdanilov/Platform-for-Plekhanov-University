@@ -17,11 +17,18 @@ urlpatterns = [
     path('university/', views.university, name='university'),
     path('university/captcha.png', views.university_captcha, name='university_captcha'),
     path('university/contact/', views.university_contact, name='university_contact'),
-    path('import/', views.import_view, name='import'),
-    path('import/template.csv', views.import_template, name='import_template'),
+    # Импорт расписания удалён: сотрудницы заполняют базу вручную через
+    # админку, а импорт был не только не нужен, но и опасен — кнопка
+    # «Проверить файл» писала данные в базу, пока показывала «будет
+    # создано» (audit_todos/01). Вместе с ним ушли и /import/, и
+    # /import/template.csv: шаблон CSV существовал только как эталон
+    # формата для загрузки.
     path('export/timetable.csv', views.export_csv_view, name='export'),
     path('export/timetable.xlsx', views.export_xlsx_view, name='export_xlsx'),
-    path('export/current.xlsx', views.export_xlsx_view, name='export_xlsx_current'),
+    # Раньше здесь был ещё path('export/current.xlsx', ...) с именем
+    # export_xlsx_current — на ту же вьюху. Второй адрес удалён: одно имя на
+    # ресурс, как у CSV. Ни в шаблонах, ни в тестах, ни в README адрес не
+    # встречался, а наружу сайт не выставлен (задача 14).
 ]
 
 admin.site.site_header = 'Расписание — администрирование'

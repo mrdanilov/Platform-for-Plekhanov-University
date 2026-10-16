@@ -12,13 +12,28 @@ RU = {
     'logout': 'Выйти',
     'menu_groups': 'Группы',
     'menu_pairs': 'Пары',
+    # Кнопка выбора группы называется «Пары»: сетка расписания идёт по парам,
+    # и сотрудникам слово «пара» привычнее, чем «группа». В окне выбора при
+# этом остаётся «Группы» — выбираем именно группу, её парами потом и смотрим.
+    'menu_lessons': 'Пары',
+    'menu_rooms': 'Кабинеты',
+    'menu_substitutions': 'Замены',
+    'instead_of': 'вместо',
+    'subs_word': 'замен',
+    'no_substitutions': 'На эту неделю замен нет',
     'menu_teachers': 'Преподаватели',
-    'placeholder': 'Выберите группу или преподавателя, чтобы посмотреть расписание',
+    'zoom': 'Масштаб',
+    'zoom_in': 'Приблизить',
+    'zoom_out': 'Отдалить',
+    'zoom_reset': 'Вернуть 100 %',
+    'placeholder': 'Выберите группу, кабинет или преподавателя, чтобы посмотреть расписание',
     'week': 'Неделя',
     'now': 'текущая',
     'prev_week': 'Предыдущая неделя',
     'next_week': 'Следующая неделя',
     'excel': 'Excel',
+    'sec': 'с',
+    'download_wait': 'Повторная выгрузка через',
     'print': 'Печать',
     'choose': 'Выбор',
     'search': 'Поиск…',
@@ -33,12 +48,13 @@ RU = {
     'teacher': 'Преподаватель',
     'type': 'Тип',
     'course': 'курс',
+    'places': 'мест',
+    'all_courses': 'Все курсы',
     'lesson': 'Пара',
     'time': 'Время',
     'day': 'День',
     'total': 'Всего занятий',
     'formed': 'Расписание сформировано',
-    'import': 'Импорт',
     'export': 'Выгрузка',
     'admin': 'Админка',
     'no_lessons_today': 'На этот день занятий нет.',
@@ -53,7 +69,6 @@ RU = {
     'university_address': 'Адрес',
     'university_phone': 'Телефоны',
     'university_email': 'Почта',
-    'university_webmaster': 'Веб-мастер',
     'university_schedule_phone': 'По вопросам расписания',
     'university_extra_phone': 'По вопросам заочной учёбы',
     'university_form': 'Связаться с нами',
@@ -67,6 +82,7 @@ RU = {
     'university_send': 'Отправить',
     'university_sent': 'Спасибо! Сообщение отправлено, мы ответим на указанную почту.',
     'university_send_error': 'Проверьте заполнение полей и согласие на обработку данных.',
+    'university_rate_limited': 'Слишком много обращений с этого адреса. Попробуйте позже или позвоните нам.',
     'university_map': 'Карта проезда',
     # дни недели, коротко и полно
     'day_1': 'Понедельник', 'day_2': 'Вторник', 'day_3': 'Среда',
@@ -83,13 +99,25 @@ UZ = {
     'logout': 'Chiqish',
     'menu_groups': 'Guruhlar',
     'menu_pairs': 'Darslar',
+    'menu_lessons': 'Darslar',
+    'menu_rooms': 'Xonalar',
+    'menu_substitutions': 'Almashtirishlar',
+    'instead_of': "o'rniga",
+    'subs_word': 'almashtirish',
+    'no_substitutions': "Bu haftada almashtirish yo'q",
     'menu_teachers': "O'qituvchilar",
+    'zoom': 'Masshtab',
+    'zoom_in': 'Kattalashtirish',
+    'zoom_out': 'Kichiklashtirish',
+    'zoom_reset': '100 % ga qaytarish',
     'placeholder': "Guruh yoki o'qituvchini tanlang va jadvalni ko'ring",
     'week': 'Hafta',
     'now': 'joriy',
     'prev_week': 'Oldingi hafta',
     'next_week': 'Keyingi hafta',
     'excel': 'Excel',
+    'sec': 's',
+    'download_wait': 'Qayta eksport',
     'print': 'Chop etish',
     'choose': 'Tanlash',
     'search': 'Qidirish…',
@@ -104,12 +132,13 @@ UZ = {
     'teacher': "O'qituvchi",
     'type': 'Turi',
     'course': 'kurs',
+    'places': "o'rin",
+    'all_courses': 'Barcha kurslar',
     'lesson': 'Dars',
     'time': 'Vaqt',
     'day': 'Kun',
     'total': 'Jami darslar',
     'formed': 'Jadval tuzilgan',
-    'import': 'Import',
     'export': 'Eksport',
     'admin': 'Admin',
     'no_lessons_today': 'Bu kunga darslar yo\'q.',
@@ -124,7 +153,6 @@ UZ = {
     'university_address': 'Manzil',
     'university_phone': 'Telefonlar',
     'university_email': 'Pochta',
-    'university_webmaster': 'Veb-master',
     'university_schedule_phone': 'Jadval bo‘yicha savollar',
     'university_extra_phone': 'Kechqurun o‘qish bo‘yicha savollar',
     'university_form': 'Biz bilan bog‘laning',
@@ -138,6 +166,7 @@ UZ = {
     'university_send': 'Yuborish',
     'university_sent': 'Rahmat! Xabaringiz yuborildi, ko‘rsatilgan pochta orqali javob beramiz.',
     'university_send_error': 'Maydonlarni va ma’lumotlarni qayta ishlashga rozini tekshiring.',
+    'university_rate_limited': 'Juda ko‘p murojaatlar. Keyinroq urinib ko‘ring yoki bizga qo‘ng‘iroq qiling.',
     'university_map': 'Xarita',
     'day_1': 'Dushanba', 'day_2': 'Seshanba', 'day_3': 'Chorshanba',
     'day_4': 'Payshanba', 'day_5': 'Juma', 'day_6': 'Shanba',
@@ -171,8 +200,52 @@ def translate(request, key, **kwargs):
     return text.format(**kwargs) if kwargs else text
 
 
+def day_short(num, request=None):
+    """Короткое название дня недели: «Пн», «Вт», …, «Сб».
+
+    Раньше в трёх местах стояло ``имя[:2]``. Обрезка давала «Че», «Пя»,
+    «По» и «Су» — по буквам начала слова, а не по принятой форме.
+    Брать из словаря надо: это единственное место, где короткие формы
+    переводятся на узбекский.
+
+    ``request`` может быть ``None`` — так строятся выгрузки и служебные
+    выборки. Тогда берётся русский вариант, как и для полных названий.
+    """
+    key = f'dow_{num}'
+    if request is None:
+        return RU.get(key, key)
+    return translate(request, key)
+
+
 def weekday_name(request, day_number, short=False):
     return translate(request, f'dow_{day_number}' if short else f'day_{day_number}')
+
+
+def weekday_name_ru(day_number):
+    """Полное название дня по-русски, без ``request``.
+
+    Нужно там, где запроса нет: боковая панель строит подписи дней из
+    справочника, а не из сессии. Раньше эти названия лежали в
+    ``excel.py`` вместе с импортом, и удаление импорта унесло бы их — а
+    панель без них перестаёт работать.
+
+    Держится в одном месте со словарём перевода: если добавится седьмой
+    рабочий день, названия разъедутся, и это будет видно в тестах.
+    """
+    return RU.get(f'day_{day_number}', '')
+
+
+def weekdays_ru():
+    """Словарь ``{номер: название}`` для всех рабочих дней недели."""
+    out = {}
+    for key, name in RU.items():
+        if not key.startswith('day_'):
+            continue
+        tail = key[len('day_'):]
+        if not tail.isdigit():
+            continue
+        out[int(tail)] = name
+    return dict(sorted(out.items()))
 
 
 class Trans:

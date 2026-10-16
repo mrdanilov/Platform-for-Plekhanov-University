@@ -1,0 +1,109 @@
+/* Виджет выбора цвета в админке.
+
+Стили живут здесь, а не в schedule/style.css: файл расписания отдаётся
+публике и не должен тащить админские классы в общий CSS.
+*/
+
+.color-picker {
+  max-width: 560px;
+}
+
+.color-picker-samples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.color-swatch {
+  width: 40px;
+  height: 30px;
+  border: 2px solid #b9c0c9;
+  border-radius: 5px;
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+}
+
+.color-swatch:hover {
+  border-color: #7a828c;
+}
+
+.color-swatch:focus-visible {
+  outline: 2px solid #417690;
+  outline-offset: 2px;
+}
+
+/* Выбранный образец отмечен галочкой: цвет у всех светлый, рамкой
+   выбранный от соседних не отличить. */
+.color-swatch.is-selected {
+  border-color: #417690;
+  box-shadow: 0 0 0 2px #417690;
+}
+
+.color-swatch.is-selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: no-repeat center / 14px 14px
+    url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 8.5l4 4 8-9' fill='none' stroke='%23222' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.color-picker-native {
+  width: 52px;
+  height: 34px;
+  padding: 2px;
+  border: 1px solid #b9c0c9;
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.color-picker-text {
+  width: 120px;
+  font-family: Consolas, 'Courier New', monospace;
+}
+
+.color-picker-text.is-invalid-color {
+  border-color: #ba2121;
+  background: #fff8f8;
+}
+
+.color-picker-hint {
+  margin: 0 0 12px;
+  color: #666;
+  font-size: 12px;
+  line-height: 1.4;
+  max-width: 520px;
+}
+
+.color-picker-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.color-picker-preview-label {
+  color: #666;
+  font-size: 12px;
+}
+
+.color-picker-preview-box {
+  display: inline-block;
+  min-width: 120px;
+  padding: 8px 12px;
+  border: 1px solid #b9c0c9;
+  border-radius: 6px;
+  font-weight: 600;
+  text-align: center;
+  color: #1b2733;
+  background: transparent;
+}

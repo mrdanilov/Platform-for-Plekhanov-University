@@ -1,0 +1,58 @@
+{% extends "admin/base_site.html" %}
+
+{% comment %}
+Предпросмотр: «вот так расписание будет выглядеть после публикации».
+Сетка собирается из опубликованного расписания с наложенными черновиками,
+ничего не сохраняется.
+{% endcomment %}
+
+{% block title %}Предпросмотр публикации{% endblock %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Главная</a>
+    &rsaquo; <a href="{% url 'admin:schedule_lessondraft_changelist' %}">Черновики правок</a>
+    &rsaquo; Предпросмотр
+  </div>
+{% endblock %}
+
+{% block content %}
+  <h1>Как будет выглядеть расписание</h1>
+  <p class="draft-lead">
+    Неделя {{ week_label }}. Наложено неопубликованных правок:
+    <strong>{{ drafts|length }}</strong>. На сайте пока ничего не изменилось —
+    это предпросмотр, а не публикация.
+  </p>
+
+  <p class="draft-nav">
+    <a href="?week={{ prev_week }}">&laquo; предыдущая</a>
+    <a href="?week={{ next_week }}">следующая &raquo;</a>
+  </p>
+
+  {% include "schedule/_block.html" with view="draft" %}
+
+  {% if drafts %}
+    <h2>Что будет применено</h2>
+    <table class="draft-list">
+      <thead>
+        <tr><th>Действие</th><th>Что получится</th><th>Пояснение</th>
+          <th>Кто подготовил</th></tr>
+      </thead>
+      <tbody>
+        {% for draft in drafts %}
+          <tr>
+            <td>{{ draft.get_action_display }}</td>
+            <td>{{ draft.describe }}</td>
+            <td>{{ draft.note|default:"—" }}</td>
+            <td>{{ draft.author|default:"—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <p class="draft-lead">
+    {% if grid.dropped %}Занятий, которые исчезнут: {{ grid.dropped }}. {% endif %}
+    Публикация применяется кнопкой «Опубликовать» в списке черновиков.
+  </p>
+{% endblock %}
