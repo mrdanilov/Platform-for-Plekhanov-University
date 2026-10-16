@@ -252,15 +252,17 @@ class ReadmePathsResolveTests(SimpleTestCase):
 
 
 class ReadmeStaysShortTests(SimpleTestCase):
-    """README открывают чужие люди на GitHub — он должен быть коротким.
+    """README открывают чужие люди на GitHub — он не должен разрастаться.
 
-    Так случилось уже один раз: README разросся до тысячи строк и стал
-    памяткой для автора. Читатель извне не дочитывает и уходит. Подробности
-    переехали в `docs/HANDBOOK.md`, и теперь это закреплено проверкой, а не
-    добрыми намерениями.
+    Так уже случилось: README вырос до тысячи строк и стал памяткой для
+    автора. Подробности переехали в `docs/HANDBOOK.md`, и это закреплено
+    проверкой. Планка поднята с 200 до 320 строк потому, что описание
+    проекта для посторонних (задача, возможности, логика, архитектура,
+    стек, запуск, настройки, тесты, безопасность) столько занимает по
+    существу, а не по недосмотру.
     """
 
-    MAX_LINES = 200
+    MAX_LINES = 320
 
     def setUp(self):
         self.text = README.read_text(encoding='utf-8')
@@ -276,14 +278,39 @@ class ReadmeStaysShortTests(SimpleTestCase):
     def test_readme_explains_what_the_project_is(self):
         """Человек с GitHub должен понять, что это, за 30 секунд."""
         lowered = self.text.lower()
-        self.assertIn('django', lowered, 'не сказано, на чём написано')
-        self.assertIn('sqlite', lowered, 'не сказано, где хранятся данные')
-        self.assertIn('что умеет', lowered, 'нет раздела «Что умеет»')
+        for needle in ('django', 'sqlite', 'возможности', 'быстрый старт'):
+            self.assertIn(needle, lowered, f'в README нет слова «{needle}»')
+
+    def test_readme_has_the_usual_sections(self):
+        """Структура, к которой привык человек, открывающий репозиторий."""
+        for heading in ('## Задача', '## Возможности', '## Стек',
+                        '## Быстрый старт', '## Тесты', '## Безопасность'):
+            self.assertIn(heading, self.text, f'в README нет раздела {heading}')
+
+    def test_readme_has_table_of_contents(self):
+        self.assertIn('## Оглавление', self.text, 'в README нет оглавления')
 
     def test_readme_points_at_the_handbook(self):
         """Отсылка нужна, иначе подробности никто не найдёт."""
         self.assertIn('docs/HANDBOOK.md', self.text,
                       'в README нет ссылки на памятку по коду')
+
+    def test_badge_points_at_the_workflow_that_exists(self):
+        """Бейдж проверок должен вести на реальный файл с проверками.
+
+        Бейдж на несуществующий workflow показывает «no status» и выглядит
+        как сломанная ссылка, а не как проверка.
+        """
+        import re as _re
+
+        badges = _re.findall(r'actions/workflows/([A-Za-z0-9_.-]+)/badge\.svg',
+                             self.text)
+        self.assertTrue(badges, 'в README нет бейджа проверок')
+        for name in badges:
+            self.assertTrue(
+                (ROOT / '.github' / 'workflows' / name).exists(),
+                f'бейдж ссылается на несуществующий workflow {name}',
+            )
 
     def test_handbook_exists_and_is_the_long_one(self):
         self.assertTrue(HANDBOOK.exists(), 'нет памятки docs/HANDBOOK.md')

@@ -63,6 +63,10 @@ NAME_ONLY = re.compile(
 )
 
 CURATOR = re.compile(r'кураторск\w*\s+час', re.I)
+# Позиция, продублированная в файле: в «ст. ст. преп.» регулярное выражение
+# находит «ст. преп.», и перед ФИО остаётся лишнее «ст. ». Точка
+# обязательна, иначе от названия предмета откусило бы первые буквы.
+LEFTOVER_POSITION = re.compile(r'\b(?:ст|доц|проф|асс|преп)\s*\.', re.I)
 ROOM_NUM = re.compile(r'^(\d+)\s*/\s*(\d+)$')
 SEMESTER = re.compile(r'на\s+([\d,\s]+?)\s*семестр', re.I)
 WEEK_NO = re.compile(r'(\d{1,2})\s*недел', re.I)
@@ -184,14 +188,19 @@ def split_cell(text):
 
     teacher = position = None
     for pattern, name in POSITION_PATTERNS:
-        match = pattern.search(rest)
-        if match:
-            position = name
-            teacher = tidy_name(rest[match.end():])
-            rest = rest[:match.start()]
-            break
+        matches = list(pattern.finditer(rest))
+        if not matches:
+            continue
+        position = name
+        # ФИО — это всё, что после должности. Раньше бралась одна позиция,
+        # теперь их может быть несколько («ст. ст. преп.»), поэтому ФИО
+        # берётся после последней вхождения, а предмет заканчивается перед
+        # первым. Так «доц.» уходит из названия вместе со своей точкой.
+        teacher = tidy_name(rest[matches[-1].end():])
+        rest = rest[:matches[0].start()]
+        break
     else:
-        # Должности нет — пробуем найти ФИО в конце ячейки. ФИО занимает
+        # Должности нет — ФИО ищем в конце ячейки. ФИО занимает
         # от одного до трёх слов, поэтому перебираем хвосты подлиннее.
         words = rest.split(' ')
         for take in (3, 2, 1):
@@ -202,6 +211,13 @@ def split_cell(text):
                 teacher = tidy_name(tail)
                 rest = ' '.join(words[:-take])
                 break
+
+    # Остаток продублированной позиции: «ст. » перед ФИО, когда полное
+    # сочетание «ст. преп.» уже вырезано. Чистим только если должность
+    # действительно нашлась: без этого сработала бы лишняя точка в
+    # предмете вида «Основы предпринимательства ст.».
+    if position:
+        rest = LEFTOVER_POSITION.sub(' ', rest)
 
     subject = re.sub(r'\s+', ' ', rest).strip(' .,;:-–—')
     return subject or None, lesson_type, (teacher or None), position

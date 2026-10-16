@@ -1,0 +1,55 @@
+name: Проверки
+
+# Каждый push и каждый pull request прогоняют полный набор тестов. Бейдж в
+# README показывает результат этого запуска, а не надпись на картинке.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Минимальная версия, на которой заявлена поддержка, и текущая.
+        python-version: ['3.12', '3.14']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Поставить Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Поставить зависимости
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Собрать статику
+        run: python manage.py collectstatic --noinput
+
+      - name: Проверка настроек
+        run: |
+          python manage.py check
+          # Отложенных миграций быть не должно: иначе на сервере код
+          # запустится со старой схемой таблиц и упадёт на первом же запросе.
+          python manage.py makemigrations --check --dry-run
+
+      - name: Тесты
+        run: python manage.py test schedule
+
+      - name: Пробный запуск на настоящем файле расписания
+        # Разбор файла проверяется на файле из репозитория: на нём
+        # настоящие опечатки вуза, на которых ломается тихая загрузка.
+        run: python manage.py load_week_schedule tests/fixtures/example_week.xlsx --dry-run
