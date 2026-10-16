@@ -1,13 +1,17 @@
-"""Схема папок в README должна соответствовать реальной структуре.
+"""Схема папок в памятке должна соответствовать реальной структуре.
 
 Зачем. Название папки приложения (`schedule/`) отличается от названия проекта
 (`timetable/`), и это сбивает с толку не в первый раз: пути в документации
-выглядят как ссылки на чужой проект. Чтобы вопрос не возникал снова, в README
-есть схема — и она обязана быть правдой.
+выглядят как ссылки на чужой проект. Чтобы вопрос не возникал снова, в
+памятке есть схема — и она обязана быть правдой.
 
 Проверяется содержание, а не оформление: если завтра появится новый модуль,
 тест потребует его упомянуть, а если файл переименуют — упадёт и укажет, что
 схему надо поправить.
+
+Схема живёт в `docs/HANDBOOK.md`, а не в README. README открывают чужие
+люди на GitHub: там описание проекта, а не разбор устройства папок. Такая
+разбивка проверяется отдельно — см. `ReadmeStaysShortTests`.
 """
 
 import pathlib
@@ -18,6 +22,7 @@ from django.test import SimpleTestCase
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 README = ROOT / 'README.md'
+HANDBOOK = ROOT / 'docs' / 'HANDBOOK.md'
 
 # Символы отрисовки дерева в README. Отступ по ним определяет, в какой
 # папке лежит файл: «├── config/» — папка верхнего уровня,
@@ -29,7 +34,7 @@ _ARROW = re.compile('[\u2190\u2192]')   # ← →
 
 
 def readme_text():
-    return README.read_text(encoding='utf-8')
+    return HANDBOOK.read_text(encoding='utf-8')
 
 
 def _parse_tree(section):
@@ -244,3 +249,46 @@ class ReadmePathsResolveTests(SimpleTestCase):
                 (ROOT / rel).exists(),
                 f'в README есть ссылка на несуществующий модуль {rel}',
             )
+
+
+class ReadmeStaysShortTests(SimpleTestCase):
+    """README открывают чужие люди на GitHub — он должен быть коротким.
+
+    Так случилось уже один раз: README разросся до тысячи строк и стал
+    памяткой для автора. Читатель извне не дочитывает и уходит. Подробности
+    переехали в `docs/HANDBOOK.md`, и теперь это закреплено проверкой, а не
+    добрыми намерениями.
+    """
+
+    MAX_LINES = 200
+
+    def setUp(self):
+        self.text = README.read_text(encoding='utf-8')
+        self.lines = self.text.splitlines()
+
+    def test_readme_is_not_a_handbook(self):
+        self.assertLessEqual(
+            len(self.lines), self.MAX_LINES,
+            f'README вырос до {len(self.lines)} строк. Подробности — в '
+            f'docs/HANDBOOK.md, здесь описание проекта для посторонних.',
+        )
+
+    def test_readme_explains_what_the_project_is(self):
+        """Человек с GitHub должен понять, что это, за 30 секунд."""
+        lowered = self.text.lower()
+        self.assertIn('django', lowered, 'не сказано, на чём написано')
+        self.assertIn('sqlite', lowered, 'не сказано, где хранятся данные')
+        self.assertIn('что умеет', lowered, 'нет раздела «Что умеет»')
+
+    def test_readme_points_at_the_handbook(self):
+        """Отсылка нужна, иначе подробности никто не найдёт."""
+        self.assertIn('docs/HANDBOOK.md', self.text,
+                      'в README нет ссылки на памятку по коду')
+
+    def test_handbook_exists_and_is_the_long_one(self):
+        self.assertTrue(HANDBOOK.exists(), 'нет памятки docs/HANDBOOK.md')
+        handbook_lines = len(HANDBOOK.read_text(encoding='utf-8').splitlines())
+        self.assertGreater(
+            handbook_lines, len(self.lines),
+            'памятка должна быть подробнее README, а не наоборот',
+        )
