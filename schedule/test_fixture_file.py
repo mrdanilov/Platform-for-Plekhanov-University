@@ -14,7 +14,7 @@
 from pathlib import Path
 
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 
 from schedule.models import Group, Lesson, LessonType, Room, Teacher
 from schedule.management.commands.load_week_schedule import read_file
@@ -133,7 +133,6 @@ class FixtureReadTests(TestCase):
 
 class FixtureLoadTests(TestCase):
     """Файл доходит до базы целиком."""
-
     def test_load_fills_everything(self):
         call_command('load_week_schedule', str(FIXTURE), stdout=None)
 
@@ -167,3 +166,38 @@ class FixtureLoadTests(TestCase):
         call_command('load_week_schedule', str(FIXTURE), '--dry-run',
                      stdout=None)
         self.assertEqual(Lesson.objects.count(), 0)
+
+
+class CiWorkflowTests(SimpleTestCase):
+    """Проверки в CI должны ссылаться на файл, который реально лежит в репозитории.
+
+    Так уже случилось: workflow запускал разбор файла по пути
+    `tests/fixtures/example_week.xlsx`, а файл лежал в `schedule/fixtures/`.
+    Локально это ничем не проявлялось — путь был зашит в yaml, — а на GitHub
+    оба запуска падали с «Файл не найден». Поэтому путь проверяется здесь же.
+    """
+
+    WORKFLOW = (Path(__file__).resolve().parent.parent
+                / '.github' / 'workflows' / 'tests.yml')
+
+    def setUp(self):
+        self.assertTrue(self.WORKFLOW.exists(), 'нет файла проверок в CI')
+        self.text = self.WORKFLOW.read_text(encoding='utf-8')
+
+    def test_workflow_runs_the_loader_on_an_existing_file(self):
+        import re
+
+        root = Path(__file__).resolve().parent.parent
+        commands = re.findall(r'load_week_schedule\s+(\S+)', self.text)
+        self.assertTrue(commands, 'в CI не запускается разбор файла')
+        for path in commands:
+            self.assertTrue(
+                (root / path).exists(),
+                f'проверка в CI ссылается на {path}, а такого файла нет',
+            )
+
+    def test_workflow_runs_tests_and_migration_check(self):
+        for step in ('manage.py check', 'makemigrations --check',
+                     'manage.py test schedule', 'collectstatic'):
+            self.assertIn(step, self.text,
+                          f'в CI нет шага «{step}» — без него прогон неполный')

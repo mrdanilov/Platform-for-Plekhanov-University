@@ -1,5 +1,6 @@
 import re
 
+import hashlib
 import json
 
 from django.conf import settings
@@ -27,11 +28,19 @@ _TYPE_PALETTE = ('#b8d4f2', '#bfe3bc', '#ffe08a', '#d6c4ee', '#ffc79a',
 
 
 def lesson_type_color(name=''):
-    """Цвет подложки для типа занятия по его названию."""
+    """Цвет подложки для типа занятия по его названию.
+
+    Хеш берётся устойчивый, а не встроенный ``hash()``: в Python хеш строки
+    случайный при каждом запуске, и цвет нового типа молча менялся бы после
+    перезапуска сервера. Для «Лекции» это не заметно — её цвет прописан
+    прямо в таблице, — но любой тип, добавленный позже, перекрашивался бы сам
+    и педагог бы удивлялся, почему карточка стала другого оттенка.
+    """
     key = norm_key(name)
     if key in LESSON_TYPE_COLORS:
         return LESSON_TYPE_COLORS[key]
-    return _TYPE_PALETTE[hash(key) % len(_TYPE_PALETTE)]
+    digest = hashlib.md5(key.encode('utf-8')).hexdigest()
+    return _TYPE_PALETTE[int(digest, 16) % len(_TYPE_PALETTE)]
 
 
 class NormalizedKeyMixin(models.Model):

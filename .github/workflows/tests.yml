@@ -52,4 +52,6 @@ jobs:
       - name: Пробный запуск на настоящем файле расписания
         # Разбор файла проверяется на файле из репозитория: на нём
         # настоящие опечатки вуза, на которых ломается тихая загрузка.
-        run: python manage.py load_week_schedule tests/fixtures/example_week.xlsx --dry-run
+        # Путь здесь и в schedule/tests_support/build_fixture.py должен
+        # совпадать — иначе проверка падает «Файл не найден».
+        run: python manage.py load_week_schedule schedule/fixtures/example_week.xlsx --dry-run

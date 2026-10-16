@@ -5,11 +5,13 @@
 осталось CharField, поэтому миграции нет и старые значения открываются как есть.
 """
 
+import os
 import datetime as dt
 
 import datetime as dt
 
 from django.contrib.admin.sites import AdminSite
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import RequestFactory, TestCase
@@ -218,9 +220,39 @@ class LessonTypeColorTests(TestCase):
         self.assertEqual(lesson_type_color('Лабораторная работа'), '#d6c4ee')
 
     def test_unknown_type_still_gets_a_color(self):
-        """Новый тип из файла не должен остаться серым на сером."""
+        """Новый тип из файла не должен остаться серым на сергом."""
         color = lesson_type_color('Контрольная работа')
         self.assertRegex(color, r'^#[0-9a-f]{6}$')
+
+    def test_color_survives_restart(self):
+        """Цвет типа не должен меняться при перезапуске сервера.
+
+        Встроенный ``hash()`` в Python случайный при каждом запуске, и новый
+        тип занятия молча перекрашивался бы после перезапуска: карточка у
+        преподавателя меняет оттенок без всякой видимой причины. Поэтому
+        проверка считается в отдельном процессе, как это и происходит на
+        сервере.
+        """
+        import subprocess
+        import sys
+
+        code = (
+            'import sys; sys.path.insert(0, %r);'
+            "import django; django.setup();"
+            'from schedule.models import lesson_type_color as c;'
+            "print(c('Контрольная работа'))" % str(settings.BASE_DIR)
+        )
+        seen = set()
+        for _ in range(3):
+            result = subprocess.run(
+                [sys.executable, '-c', code], capture_output=True, text=True,
+                cwd=str(settings.BASE_DIR), env={**os.environ,
+                'DJANGO_SETTINGS_MODULE': 'config.settings'})
+            self.assertTrue(result.stdout.strip(),
+                            f'не удалось получить цвет: {result.stderr[:300]}')
+            seen.add(result.stdout.strip())
+        self.assertEqual(len(seen), 1,
+                         f'цвет типа меняется между запусками: {seen}')
 
     def test_color_follows_the_name(self):
         self.assertEqual(LessonType(name='Лекция').color, '#b8d4f2')
