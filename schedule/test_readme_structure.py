@@ -79,7 +79,7 @@ def _parse_tree(section):
             folders_by_depth[depth] = body.rstrip('/').split('/')[0]
             continue
 
-        named = re.match(r'([\w]+\.(?:py|sqlite3|sh|md))', body)
+        named = re.match(r'([\w]+\.(?:py|sqlite3|sh|md|bat))', body)
         if not named:
             continue
 
@@ -141,7 +141,7 @@ class ReadmeStructureTests(SimpleTestCase):
             body = _ARROW.split(line[marker_pos:])[0]
             body = body.lstrip().lstrip(_BRANCH_CHARS).lstrip(_DASHES).strip()
             name = body.rstrip('/').split('/')[0]
-            if name and not re.match(r'[\w]+\.(?:py|sqlite3|sh|md)', name):
+            if name and not re.match(r'[\w]+\.(?:py|sqlite3|sh|md|bat)', name):
                 top_level.add(name)
 
         top_level.discard('timetable')   # это сам корень проекта
